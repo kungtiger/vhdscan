@@ -1,0 +1,8 @@
+[
+  {
+    "srcDir": "ui",
+    "destDir": "ui",
+    "files": "**/*.scss",
+    "command": "sassc --style=compact ${srcFile} ${destFileWithoutExtension}.css"
+  }
+]

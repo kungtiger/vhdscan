@@ -1,0 +1,19 @@
+#welcome {
+  button {
+    border-radius: 0px;
+    border-style: none;
+  }
+
+  #app_name {
+    font-size: 1.5em;
+  }
+  #version {
+    opacity: .8;
+  }
+  #recent_list .name {
+    font-weight: bold;
+  }
+  #recent_list .box {
+    padding: 3px 12px;
+  }
+}

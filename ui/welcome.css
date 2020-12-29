@@ -1,0 +1,9 @@
+#welcome button { border-radius: 0px; border-style: none; }
+
+#welcome #app_name { font-size: 1.5em; }
+
+#welcome #version { opacity: .8; }
+
+#welcome #recent_list .name { font-weight: bold; }
+
+#welcome #recent_list .box { padding: 3px 12px; }
