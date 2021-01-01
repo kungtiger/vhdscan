@@ -36,7 +36,7 @@ def _debug_(ctx, *args):
 
 
 def _(text):
-    return Application.translate(text)
+    return Locale.translate(text)
 
 
 def json_load(path):
@@ -187,7 +187,6 @@ class FileChooserDialog(Gtk.FileChooserDialog, UI):
 
 
 class Window(UI):
-    # Scaffold for Windows
 
     instance = None
 
@@ -215,7 +214,7 @@ class Window(UI):
 
         self.init()
 
-    # Routes unset instance attribute access to Glade and returns a GTK object
+    # Routes unset instance attribute access to Glade and returns a Gtk object
     def __getattr__(self, id):
         gtk_object = self.__builder.get_object(id)
         if not gtk_object:
@@ -277,6 +276,7 @@ class Dialog(Window):
 
 
 class Welcome(Window):
+
     def init(self):
         self.title = _("VHD Scan")
         self.new_label.set_label(_("New Project"))
@@ -333,18 +333,18 @@ class Welcome(Window):
     # handler
     def new_project(self, *args):
         self.hide()
-        data = Project_Dialog.show("new")
+        data = ProjectDialog.show("new")
         if data and Project.create(data):
-            Capture.show()
+            CaptureWindow.show()
         else:
             self.show()
 
     # handler
     def open_project(self, *args):
         self.hide()
-        path = Open_Project.show()
+        path = OpenProjectDialog.show()
         if path and Project.load(path):
-            Capture.show()
+            CaptureWindow.show()
         else:
             self.show()
 
@@ -352,7 +352,7 @@ class Welcome(Window):
     def open_recent(self, btn, path):
         self.hide()
         if path and Project.load(path):
-            Capture.show()
+            CaptureWindow.show()
         else:
             self.show()
 
@@ -360,7 +360,7 @@ class Welcome(Window):
 # ____________________________________________________________________________ #
 
 
-class Project_Dialog(Dialog):
+class ProjectDialog(Dialog):
     def init(self):
         self.cancel_btn.set_label(_("Cancel"))
 
@@ -495,7 +495,7 @@ class Project_Dialog(Dialog):
 # ____________________________________________________________________________ #
 
 
-class Open_Project:
+class OpenProjectDialog:
     @classmethod
     def show(self, *args, **kwargs):
         _debug_(self, "open")
@@ -529,22 +529,16 @@ class Open_Project:
 # ____________________________________________________________________________ #
 
 
-class Setup_Camera(Dialog):
+class SetupDialog(Dialog):
     def init(self):
-        self.__building = False
         self.__camera = None
-        self.title = _("Setup Camera")
         self.close_btn.set_label(_("Close"))
 
-        # name path
-        types = [str, str]
         self.device_select = Selectbox()
         self.device_select.connect("notify::active", self.select_device)
         self.device_box.pack_start(self.device_select, True, True, 0)
         self.device_select.show()
 
-        # name hash
-        types = [str, str]
         self.resolution_select = Selectbox()
         self.resolution_select.connect("notify::active", self.select_resolution)
         self.resolution_box.pack_start(self.resolution_select, True, True, 0)
@@ -561,7 +555,7 @@ class Setup_Camera(Dialog):
         self.clear_controls()
         self.__camera = camera
         self.__camera.stop_feed()
-        _debug_(self, "setup camera path:'%s'" % camera.path)
+        _debug_(self, "camera path:'%s'" % camera.path)
 
         self.resolution_select.clear()
         self.resolution_box.hide()
@@ -570,7 +564,7 @@ class Setup_Camera(Dialog):
         self.device_select.append(_("Keine Kamera"), "")
         i = 0
         camera_set = False
-        devices = Device_Manager.get_all(
+        devices = DeviceManager.get_all(
             only_free=True,
             include=self.__camera.path
         )
@@ -635,7 +629,7 @@ class Setup_Camera(Dialog):
 # ____________________________________________________________________________ #
 
 
-class Capture(Window):
+class CaptureWindow(Window):
 
     def init(self):
         self.camera_1_btn.set_tooltip_text(_("Setup left camera"))
@@ -680,7 +674,7 @@ class Capture(Window):
     # hander
     def new_project(self, *args):
         # self.hide()
-        data = Project_Dialog.show("new")
+        data = ProjectDialog.show("new")
         if data:
             Project.create(data)
             self.update_ui()
@@ -689,7 +683,7 @@ class Capture(Window):
     # hander
     def open_project(self, *args):
         self.hide()
-        path = Open_Project.show()
+        path = OpenProjectDialog.show()
         if path:
             Project.load(path)
         self.show()
@@ -697,7 +691,7 @@ class Capture(Window):
     # handler
     def edit_project(self, *args):
         # self.hide()
-        data = Project_Dialog.show("edit")
+        data = ProjectDialog.show("edit")
         if data:
             Project.update(data)
             Project.save()
@@ -709,7 +703,7 @@ class Capture(Window):
         pass
 
     def show_statistic(self, *args):
-        Statistic.show()
+        StatisticDialog.show()
 
     # handler
     def swap_cameras(self, *args):
@@ -720,14 +714,14 @@ class Capture(Window):
     # handler
     def setup_camera_1(self, *args):
         self.hide()
-        Setup_Camera.show(Project.camera_1, "left")
+        SetupDialog.show(Project.camera_1, "left")
         Project.save()
         self.show()
 
     # hander
     def setup_camera_2(self, *args):
         self.hide()
-        Setup_Camera.show(Project.camera_2, "right")
+        SetupDialog.show(Project.camera_2, "right")
         Project.save()
         self.show()
 
@@ -753,7 +747,7 @@ class Capture(Window):
 # ____________________________________________________________________________ #
 
 
-class Statistic(Dialog):
+class StatisticDialog(Dialog):
     def init(self):
         self.title = _("Project Statistic")
         self.close_btn.set_label(_("Close"))
@@ -908,7 +902,7 @@ class Camera:
 
     def set_device(self, path=None, id=None, device=None):
         if not device:
-            device = Device_Manager.assign(path=path, id=id)
+            device = DeviceManager.assign(path=path, id=id)
 
         if device:
             self.free_device()
@@ -923,7 +917,7 @@ class Camera:
     def free_device(self):
         if self.__device:
             self.stop_feed()
-            Device_Manager.free(path=self.__device.path)
+            DeviceManager.free(path=self.__device.path)
             self.__device = None
             self.__path = None
             self.__resolutions = None
@@ -1027,7 +1021,7 @@ class Camera:
         return False
 
     def _init_resolutions(self):
-        self.__resolutions = Resolution_List()
+        self.__resolutions = ResolutionList()
         for line in cmd("v4l2-ctl", "--device", self.__path, "--list-formats-ext"):
             if "]: '" in line:
                 pixelformat = regex(r"'([^']+)'", line)
@@ -1107,13 +1101,6 @@ class Camera:
             self.stop_feed()
 
         self.__output = output
-        self.__capture = cv2.VideoCapture(
-            filename=self.__path,
-            apiPreference=cv2.CAP_V4L2
-        )
-        self.__capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.__resolution.width)
-        self.__capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.__resolution.height)
-        self.__capture.set(cv2.CAP_PROP_FOURCC, self.__resolution.fourcode)
         self.thread = GLib.idle_add(self.__render_frame)
         _debug_(self, "started feed for '%s'" % self.__path)
         return True
@@ -1136,6 +1123,19 @@ class Camera:
     def __render_frame(self):
         if not self.is_ready:
             return False
+
+        if not self.__capture:
+            self.__capture = cv2.VideoCapture()
+            if not self.__capture.open(
+                filename=self.__path,
+                apiPreference=cv2.CAP_V4L2
+            ):
+                self.__capture = None
+                return False
+
+            self.__capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.__resolution.width)
+            self.__capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.__resolution.height)
+            self.__capture.set(cv2.CAP_PROP_FOURCC, self.__resolution.fourcode)
 
         ok, frame = self.__capture.read()
         if not ok:
@@ -1195,7 +1195,7 @@ class Resolution:
 # ____________________________________________________________________________ #
 
 
-class Resolution_List:
+class ResolutionList:
     def __init__(self):
         self.__list = []
         self.__keys = []
@@ -1368,7 +1368,7 @@ class Control:
 # ____________________________________________________________________________ #
 
 
-class Device_Manager:
+class DeviceManager:
     __devices = []
 
     @classmethod
@@ -1525,6 +1525,7 @@ class Config:
     @classmethod
     def load(self):
         self.__config = {
+            "locale": "de",
             "view": "vertical",
             "recent": []
         }
@@ -1574,6 +1575,27 @@ class Config:
             self.__config["recent"] = paths[0:15]
         self.__save()
 
+
+# ____________________________________________________________________________ #
+
+
+class Locale:
+    __locale = None
+    __l10n = None
+
+    @classmethod
+    def load(self, name):
+        self.__locale = name
+        l10n_file = join_path("locale", self.__locale + ".json")
+        if is_file(l10n_file):
+            self.__l10n = json_load(l10n_file)
+
+    @classmethod
+    def translate(self, text):
+        if not self.__l10n:
+            return text
+        return self.__l10n.get(text, text)
+
 # ____________________________________________________________________________ #
 
 
@@ -1582,8 +1604,6 @@ class Application:
     version = "beta"
     debug = True
 
-    __locale = None
-    __l10n = None
     __stylesheets = {}
     __screen = None
 
@@ -1593,35 +1613,17 @@ class Application:
         self.home_path = os.path.expanduser("~")
 
         Config.load()
-        self.load_locale()
+        Locale.load(Config.get("locale"))
 
         # Init the dialogs and windows
         Welcome.glade("ui/welcome.glade", "ui/welcome.css")
-        Project_Dialog.glade("ui/project.glade")
-        Capture.glade("ui/capture.glade")
-        Statistic.glade("ui/statistic.glade")
-        Setup_Camera.glade("ui/setup.glade")
+        ProjectDialog.glade("ui/project.glade")
+        CaptureWindow.glade("ui/capture.glade")
+        StatisticDialog.glade("ui/statistic.glade")
+        SetupDialog.glade("ui/setup.glade")
 
         Welcome.show()
         Gtk.main()
-
-    @classmethod
-    def load_config(self):
-        self.__config = {
-            "recent": []
-        }
-        self.__config_dir = user_config_dir(appname="vhdscan")
-        self.__config_path = join_path(self.__config_dir, "vhdscan.config")
-        config = json_load(self.__config_path)
-        if config:
-            self.__config.update(config)
-
-    @classmethod
-    def load_locale(self):
-        self.__locale = "de"
-        l10n_file = join_path("locale", self.__locale + ".json")
-        if is_file(l10n_file):
-            self.__l10n = json_load(l10n_file)
 
     @classmethod
     def add_stylesheet(self, path):
@@ -1645,10 +1647,6 @@ class Application:
     @classmethod
     def quit(self, *args):
         Gtk.main_quit()
-
-    @classmethod
-    def translate(self, text):
-        return self.__l10n.get(text, text) if self.__l10n else text
 
 
 if __name__ == "__main__":
