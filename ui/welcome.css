@@ -1,4 +1,4 @@
-#welcome button { border-radius: 0px; border-style: none; }
+#welcome button { border-radius: 0px; border-style: solid none; }
 
 #welcome #app_name { font-size: 1.5em; }
 
@@ -7,3 +7,9 @@
 #welcome #recent_list .name { font-weight: bold; }
 
 #welcome #recent_list .box { padding: 3px 12px; }
+
+#project .status { margin-left: 3px; }
+
+#project .invalid .label { font-style: italic; }
+
+#project .invalid .status { padding: 2px 8px; border-left: 1px solid red; }

@@ -8,18 +8,35 @@ import json
 import subprocess
 
 from appdirs import *
-from os.path import basename, isdir as is_dir, isfile as is_file, join as join_path
+from os.path import basename, dirname, isdir as is_dir, isfile as is_file, join as join_path
 from os import makedirs as mkdirs
 
 gi.require_version("Gtk", "3.0")
 
-from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, GObject
+from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, GObject, Pango
 
 # ____________________________________________________________________________ #
 
 
+def _debug_(ctx, *args):
+    if Application.debug:
+        if type(ctx) == str:
+            output = ctx
+        else:
+            output = ctx.__class__.__name__ + '::'
+
+        for arg in args:
+            try:
+                bit = str(arg)
+                output += ' ' + bit
+            except:
+                pass
+
+        print(output)
+
+
 def _(text):
-    return App.translate(text)
+    return Application.translate(text)
 
 
 def json_load(path):
@@ -108,42 +125,41 @@ class Button(Gtk.Button, UI):
     pass
 
 
-class ComboBox(Gtk.ComboBox, UI):
+class Selectbox(Gtk.ComboBox, UI):
 
     def __init__(self, *args, **kwargs):
-        types = [str]
-        if "types" in kwargs:
-            types = kwargs["types"]
-            del kwargs["types"]
-        display = 0
-        if "display" in kwargs:
-            display = kwargs["display"]
-            del kwargs["display"]
-
         super().__init__(*args, **kwargs)
 
-        self.__model = Gtk.ListStore(*types)
+        self.__model = Gtk.ListStore(str, str)
         self.set_model(self.__model)
 
         self.__cell = Gtk.CellRendererText()
         self.pack_start(self.__cell, 25)
-        self.add_attribute(self.__cell, "text", display)
+        self.add_attribute(self.__cell, "text", 0)
 
-    def get_value(self, column=0, fallback=None):
+    def get_value(self, fallback=None):
         index = self.get_active()
         if index < 0:
             return fallback
         model = self.get_model()
-        return model[index][column]
+        return model[index][1]
 
-    def set_value(self, value, column=0):
+    def set_value(self, value):
         index = 0
         for row in self.__model:
-            if row[column] == value:
+            if row[1] == value:
                 self.set_active(index)
                 return True
             index += 1
         return False
+
+    def append(self, text, value=None):
+        if value is None:
+            value = text
+        self.__model.append([text, value])
+
+    def clear(self):
+        self.__model.clear()
 
 
 class Scale(Gtk.Scale, UI):
@@ -181,13 +197,13 @@ class Window(UI):
 
     @classmethod
     def show(self, *args, **kwargs):
-        self.instance.setup(*args, **kwargs)
+        self.instance.update_ui(*args, **kwargs)
         self.instance.root.show()
 
     @classmethod
     def hide(self):
         self.instance.root.hide()
-        self.instance.teardown()
+        self.instance.tidy()
 
     def __init__(self, glade_file, stylesheet_file=None):
         self.__builder = Gtk.Builder()
@@ -195,7 +211,7 @@ class Window(UI):
         self.__builder.connect_signals(self)
 
         if stylesheet_file:
-            App.add_stylesheet(stylesheet_file)
+            Application.add_stylesheet(stylesheet_file)
 
         self.init()
 
@@ -216,10 +232,10 @@ class Window(UI):
     def init(self):
         pass
 
-    def setup(self, *args, **kwargs):
+    def update_ui(self, *args, **kwargs):
         pass
 
-    def teardown(self):
+    def tidy(self):
         pass
 
     def result(self):
@@ -227,7 +243,7 @@ class Window(UI):
 
     # handler
     def quit(self, *args):
-        App.quit()
+        Application.quit()
 
 
 # ____________________________________________________________________________ #
@@ -235,35 +251,26 @@ class Window(UI):
 
 class Dialog(Window):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.root.set_modal(True)
+
     @classmethod
     def show(self, *args, **kwargs):
-        self.instance.setup(*args, **kwargs)
+        self.instance.update_ui(*args, **kwargs)
+        result = None
         response = self.instance.root.run()
-        self.hide()
+        self.instance.root.hide()
         if response == Gtk.ResponseType.OK:
-            return self.instance.result()
-        return None
-
-
-# ____________________________________________________________________________ #
+            result = self.instance.result()
+        self.instance.tidy()
+        return result
 
     def respond_ok(self, *args):
         self.instance.root.response(Gtk.ResponseType.OK)
 
     def respond_cancel(self, *args):
         self.instance.root.response(Gtk.ResponseType.CANCEL)
-
-    def respond_apply(self, *args):
-        self.instance.root.response(Gtk.ResponseType.APPLY)
-
-    def respond_close(self, *args):
-        self.instance.root.response(Gtk.ResponseType.CLOSE)
-
-    def respond_yes(self, *args):
-        self.instance.root.response(Gtk.ResponseType.YES)
-
-    def respond_no(self, *args):
-        self.instance.root.response(Gtk.ResponseType.NO)
 
 
 # ____________________________________________________________________________ #
@@ -272,50 +279,61 @@ class Dialog(Window):
 class Welcome(Window):
     def init(self):
         self.title = _("VHD Scan")
-        self.new_label.props.label = _("New Project")
-        self.open_label.props.label = _("Open Project")
-        self.app_name.props.label = _("VHD Scan")
-        self.version.props.label = _("Version %s") % App.version
+        self.new_label.set_label(_("New Project"))
+        self.open_label.set_label(_("Open Project"))
+        self.app_name.set_label(_("VHD Scan"))
+        self.version.set_label(_("Version %s") % Application.version)
 
-    def setup(self):
+    def update_ui(self):
+        _debug_(self, "open")
         recent_projects = Config.get_recent()
         for btn in self.recent_list.get_children():
             btn.destroy()
 
         if not recent_projects:
+            _debug_(self, "no recent projects. Hiding the list")
             self.recent_scroll.hide()
-            self.root.resize(300, 260)
+            self.root.set_size_request(300, 260)
         else:
             for recent in recent_projects:
-                recent_path, recent_display_path, recent_name = recent
+                name = Label(
+                    label=recent.name,
+                    halign=Gtk.Align.START
+                )
+                name.add_class("name")
+
+                path = Label(
+                    label=recent.nice_path,
+                    halign=Gtk.Align.START,
+                    ellipsize=Pango.EllipsizeMode.MIDDLE,
+                    wrap=False
+                )
+                path.add_class("path")
+
+                box = Box(
+                    orientation=Gtk.Orientation.VERTICAL,
+                    spacing=2
+                )
+                box.add_class("box")
+                box.pack_start(name, False, False, 0)
+                box.pack_start(path, False, False, 0)
 
                 btn = Button()
                 btn.add_class("button")
-                box = Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-                box.add_class("box")
-                name = Label()
-                path = Label()
-
-                name.props.label = recent_name
-                path.props.label = recent_display_path
-                name.props.halign = Gtk.Align.START
-                path.props.halign = Gtk.Align.START
-                name.add_class("name")
-                path.add_class("path")
-                box.pack_start(name, False, False, 0)
-                box.pack_start(path, False, False, 0)
-                btn.connect("clicked", self.open_recent, recent_path)
-                btn.props.relief = Gtk.ReliefStyle.NONE
+                btn.connect("clicked", self.open_recent, recent.path)
+                btn.set_relief = Gtk.ReliefStyle.NONE
                 btn.add(box)
 
                 self.recent_list.pack_start(btn, False, False, 0)
             self.recent_scroll.show_all()
-            self.root.resize(420, 260)
+            self.root.set_size_request(420, 260)
+            _debug_(self, "%s recent projects. Showing the list" % len(recent_projects))
+            self.recent_scroll.show()
 
     # handler
     def new_project(self, *args):
         self.hide()
-        data = New_Project.show()
+        data = Project_Dialog.show("new")
         if data and Project.create(data):
             Capture.show()
         else:
@@ -342,61 +360,108 @@ class Welcome(Window):
 # ____________________________________________________________________________ #
 
 
-class New_Project(Dialog):
+class Project_Dialog(Dialog):
     def init(self):
-        self.title = _("Create New Project")
-        self.name_label.props.label = _("Project Name")
-        self.path_label.props.label = _("Project Folder")
-        self.format_label.props.label = _("Image Format")
-        self.cancel_btn.props.label = _("Cancel")
-        self.create_btn.props.label = _("Create")
+        self.cancel_btn.set_label(_("Cancel"))
 
-        self.format_select = ComboBox()
-        self.format_box.pack_start(self.format_select, False, True, 0)
-        format_list = self.format_select.get_model()
-        for format in Camera.get_image_formats():
-            format_list.append([format])
-        self.format_select.show()
-
-    def result(self):
-        return {
-            "name": self.name_input.props.text,
-            "path": Project.make_path(self.chooser.get_path()),
-            "format": self.format_select.get_value(),
-        }
-
-    def setup(self, *args, **kwargs):
-        self.chooser = FileChooserDialog(
-            title=_("Select Project Folder"),
-            action=Gtk.FileChooserAction.SELECT_FOLDER,
+        self.name_box = Box(orientation=Gtk.Orientation.VERTICAL)
+        self.name_label = Label(label=_("Project Name"), halign=Gtk.Align.START)
+        self.name_input = Gtk.Entry(
+            placeholder_text=_("Unnamed Project"),
+            width_request=300
         )
-        self.chooser.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
-        self.chooser.add_button(_("Choose"), Gtk.ResponseType.OK)
-        self.chooser.props.icon_name = "folder"
-        self.chooser.props.local_only = False
-        self.chooser.props.modal = True
-        self.chooser.props.create_folders = True
+        self.name_box.pack_start(self.name_label, False, True, 0)
+        self.name_box.pack_start(self.name_input, False, True, 0)
 
-        self.name_input.props.text = ""
-        self.format_select.set_active(0)
-        self.create_btn.set_sensitive(False)
+        self.path_box = Box(orientation=Gtk.Orientation.VERTICAL)
+        self.basename_label = Label()
+        self.basename_label.add_class("label")
+        self.basename_icon = Gtk.Image()
+        self.basename_box = Box()
+        self.path_label = Label(label=_("Project Folder"), halign=Gtk.Align.START)
+        self.path_status = Label(halign=Gtk.Align.START)
+        self.path_status.add_class("status")
+        self.path_btn = Button()
+        self.path_btn.connect("clicked", self.choose_path)
+
+        self.basename_box.pack_start(self.basename_icon, False, False, 0)
+        self.basename_box.pack_start(self.basename_label, False, False, 8)
+        self.path_btn.add(self.basename_box)
+        self.path_box.pack_start(self.path_label, False, True, 0)
+        self.path_box.pack_start(self.path_btn, False, False, 0)
+        self.path_box.pack_start(self.path_status, False, False, 0)
+
+        self.format_box = Box(orientation=Gtk.Orientation.VERTICAL)
+        self.format_label = Label(label=_("Image Format"), halign=Gtk.Align.START)
+        self.format_select = Selectbox()
+        for format in Camera.get_image_formats():
+            self.format_select.append(format)
+        self.format_select.show()
+        self.format_box.pack_start(self.format_label, False, True, 0)
+        self.format_box.pack_start(self.format_select, False, True, 0)
+
+        self.form_box.pack_start(self.name_box, False, True, 0)
+        self.form_box.pack_start(self.path_box, False, True, 0)
+        self.form_box.pack_start(self.format_box, False, True, 0)
+        self.form_box.show_all()
+
+    def update_ui(self, mode):
+        _debug_(self, "open. In mode '%s'" % mode)
+        self.__mode = mode
+        if mode == "new":
+            self.title = _("Create New Project")
+            self.chooser = FileChooserDialog(
+                title=_("Select Project Folder"),
+                action=Gtk.FileChooserAction.SELECT_FOLDER,
+            )
+            self.chooser.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
+            self.chooser.add_button(_("Choose"), Gtk.ResponseType.OK)
+            self.chooser.props.icon_name = "folder"
+            self.chooser.set_local_only(False)
+            self.chooser.set_modal(True)
+            self.chooser.set_create_folders(True)
+
+            self.name_input.set_text("")
+            self.format_select.set_active(0)
+            self.path_box.show()
+            self.ok_btn.set_sensitive(False)
+            self.ok_btn.set_label(_("Create"))
+        else:
+            self.title = _("Edit Project")
+            self.name_input.set_text(Project.name)
+            self.format_select.set_value(Project.format)
+            self.path_box.hide()
+            self.ok_btn.set_sensitive(True)
+            self.ok_btn.set_label(_("Save"))
 
         self.reset_path()
 
+    def result(self):
+        _debug_(self, "closed")
+        data = {
+            "name": self.name_input.get_text(),
+            "format": self.format_select.get_value(),
+        }
+        if self.__mode == "new":
+            data["path"] = Project.make_path(self.chooser.get_path())
+        return data
+
     def reset_path(self):
-        self.path_icon.props.icon_name = "dialog-warning"
-        self.status_label.hide()
-        self.basename_label.props.label = "<i>" + _("No project folder selected") + "</i>"
+        self.path_status.hide()
+        self.basename_icon.set_from_icon_name("dialog-warning", Gtk.IconSize.BUTTON)
+        self.basename_label.set_label(_("No project folder selected"))
+        self.path_box.add_class("invalid")
 
     # handler
     def choose_path(self, *args):
         response = self.chooser.run()
         self.chooser.hide()
         if response == Gtk.ResponseType.OK:
-            self.create_btn.props.sensitive = self.check_path()
+            self.ok_btn.set_sensitive(self.check_path())
 
     def check_path(self):
         path = self.chooser.get_path()
+        _debug_(self, "Checking path", path)
         if not path:
             self.reset_path()
             return False
@@ -405,20 +470,25 @@ class New_Project(Dialog):
         self.basename_label.set_label(name)
 
         if Project.is_path(path):
-            self.path_icon.props.icon_name = "dialog-warning"
-            self.status_label.show()
-            self.status_label.props.label = _("There is already a project inside this folder. Please choose another.")
+            _debug_(self, "Destination has project.")
+            self.basename_icon.props.icon_name = "dialog-warning"
+            self.path_box.add_class("invalid")
+            self.path_status.show()
+            self.path_status.set_label(_("There is already a project inside this folder.\nPlease choose another."))
             return False
 
         if not Project.is_empty(path):
-            self.path_icon.props.icon_name = "dialog-warning"
-            self.status_label.show()
-            self.status_label.props.label = _("This folder is not empty. Please choose another.")
+            _debug_(self, "Destination is not empty")
+            self.basename_icon.props.icon_name = "dialog-warning"
+            self.path_box.add_class("invalid")
+            self.path_status.show()
+            self.path_status.set_label(_("This folder is not empty.\nPlease choose another."))
             return False
 
-        self.path_icon.props.icon_name = "folder"
-        self.basename_label.props.tooltip_text = path
-        self.status_label.hide()
+        self.path_box.remove_class("invalid")
+        self.basename_icon.props.icon_name = "folder"
+        self.basename_label.set_tooltip_text(path)
+        self.path_status.hide()
         return True
 
 
@@ -428,14 +498,14 @@ class New_Project(Dialog):
 class Open_Project:
     @classmethod
     def show(self, *args, **kwargs):
+        _debug_(self, "open")
         self.chooser = FileChooserDialog(
             title=_("Open Project"),
             action=Gtk.FileChooserAction.SELECT_FOLDER,
+            local_only=False,
+            modal=True
         )
         self.chooser.props.icon_name = "folder"
-        self.chooser.props.local_only = False
-        self.chooser.props.modal = True
-        self.chooser.props.create_folders = True
         self.chooser.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
         ok_btn = self.chooser.add_button(_("Open"), Gtk.ResponseType.OK)
         self.chooser.connect(
@@ -446,27 +516,14 @@ class Open_Project:
 
         path = None
         if self.chooser.run() == Gtk.ResponseType.OK:
-            path = join_path(self.chooser.get_path(), ".vhdscan")
+            path = Project.make_path(self.chooser.get_path())
         self.chooser.destroy()
         return path
 
     # handler
     @staticmethod
     def validate_folder(chooser, btn):
-        print(chooser.get_path())
-        btn.props.sensitive = Project.is_path(chooser.get_path())
-
-
-# ____________________________________________________________________________ #
-
-
-class Update_Project(Dialog):
-    def init(self):
-        self.title = _("Edit Project")
-        self.name_label.props.label = _("Project Name")
-        self.format_label.props.label = _("Image Format")
-        self.cancel_btn.props.label = _("Cancel")
-        self.save_btn.props.label = _("Save")
+        btn.set_sensitive(Project.is_path(chooser.get_path()))
 
 
 # ____________________________________________________________________________ #
@@ -477,69 +534,102 @@ class Setup_Camera(Dialog):
         self.__building = False
         self.__camera = None
         self.title = _("Setup Camera")
-        self.close_btn.props.label = _("Close")
+        self.close_btn.set_label(_("Close"))
 
-        # name id path
-        types = [str, str, str]
-        self.camera_list = ComboBox(types=types)
-        self.setup_toolbar.pack_start(self.camera_list, False, True, 0)
-        self.__camera_list = self.camera_list.get_model()
-        self.camera_list.show()
+        # name path
+        types = [str, str]
+        self.device_select = Selectbox()
+        self.device_select.connect("notify::active", self.select_device)
+        self.device_box.pack_start(self.device_select, True, True, 0)
+        self.device_select.show()
 
-        # index name
-        types = [str, GObject.TYPE_PYOBJECT]
-        self.resolution_list = ComboBox(types=types)
-        self.setup_toolbar.pack_start(self.resolution_list, False, True, 0)
-        self.__resolution_list = self.resolution_list.get_model()
-        self.resolution_list.show()
+        # name hash
+        types = [str, str]
+        self.resolution_select = Selectbox()
+        self.resolution_select.connect("notify::active", self.select_resolution)
+        self.resolution_box.pack_start(self.resolution_select, True, True, 0)
+        self.resolution_select.show()
 
-    def setup(self, camera):
+    def update_ui(self, camera, slot):
+        _debug_(self, "open")
+
+        if slot == "left":
+            self.title = _("Setup Left Camera")
+        else:
+            self.title = _("Setup Right Camera")
+
         self.clear_controls()
         self.__camera = camera
+        self.__camera.stop_feed()
+        _debug_(self, "setup camera path:'%s'" % camera.path)
 
-        self.__camera_list.clear()
-        self.__camera_list.append(["", "", _("Keine Kamera")])
+        self.resolution_select.clear()
+        self.resolution_box.hide()
+
+        self.device_select.clear()
+        self.device_select.append(_("Keine Kamera"), "")
         i = 0
-        for device in Device_Manager.get_all(only_free=True):
+        camera_set = False
+        devices = Device_Manager.get_all(
+            only_free=True,
+            include=self.__camera.path
+        )
+        _debug_(self, "DeviceManager yielts %s devices" % len(devices))
+        for device in devices:
             i += 1
-            self.__camera_list.append([device.name, device.id, device.path])
+            self.device_select.append(device.name, device.path)
             if device.path == camera.path:
-                self.camera_list.set_active(i)
+                self.device_select.set_active(i)
+                camera_set = True
+        if not camera_set:
+            _debug_(self, "setup: selected no device")
+            self.device_select.set_active(0)
 
-    def result(self):
-        pass
+    def tidy(self):
+        self.__camera.stop_feed()
+        _debug_(self, "closed")
 
     def clear_controls(self):
+        # TODO: Clear output image
         for box in self.controls.get_children():
             box.destroy()
         self.__controls = {}
 
-    # handler for camera_list::changed
+    # handler for device_select notify::active signal
     def select_device(self, *args):
         self.clear_controls()
-        path = self.camera_list.get_value()
-        if not path:
-            return
+        self.__camera.stop_feed()
+        self.resolution_select.clear()
 
-        self.__camera.suspend()
-        if self.__camera.set_device(path=path):
-            for control in self.__camera.controls:
+        path = self.device_select.get_value()
+        if not path:
+            self.__camera.free_device()
+
+        _debug_(self, "Selectbox: selected device '%s'" % path)
+        self.__camera.set_device(path=path)
+        if self.__camera.is_ready:
+            for control in self.__camera.controls.values():
                 box = control.create_ui()
                 self.controls.pack_start(box, False, False, 0)
                 self.controls.show_all()
+            self.__camera._update_sensitivity()
 
-            i = 0
-            self.__resolution_list.clear()
             for resolution in self.__camera.resolutions:
-                self.__resolution_list.append([resolution.name, resolution])
-                i += 1
-        self.__camera.resume()
+                self.resolution_select.append(resolution.name, resolution.value)
 
-    # handler for resolution_list::changed
+            current_resolution = self.__camera.get_resolution()
+            if current_resolution:
+                self.resolution_select.set_value(current_resolution.value)
+
+            self.resolution_box.show()
+
+    # handler for resolution_select notify::active signal
     def select_resolution(self, *args):
-        resolution = self.resolution_list.get_value(1)
-        self.__camera.set_resolution(resolution)
-        self.__camera.start_feed()
+        self.__camera.stop_feed()
+        key = self.resolution_select.get_value()
+        _debug_(self, "Selected resolution '%s'" % key)
+        if self.__camera.set_resolution(key):
+            self.__camera.start_feed(self.feed_output)
 
 
 # ____________________________________________________________________________ #
@@ -548,29 +638,53 @@ class Setup_Camera(Dialog):
 class Capture(Window):
 
     def init(self):
-        self.new_btn.props.tooltip_text = _("New Project")
-        self.open_btn.props.tooltip_text = _("Open Project")
-        self.update_btn.props.tooltip_text = _("Edit Project")
-        self.camera_1_btn.props.tooltip_text = _("Setup left camera")
-        self.camera_2_btn.props.tooltip_text = _("Setup right camera")
-        self.swap_btn.props.tooltip_text = _("Swap camera")
-        self.close_btn.props.tooltip_text = _("Close project")
-        self.capture_btn.props.label = _("Take pictures")
-        self.capture_btn.props.tooltip_text = _("Take pictures of pages")
+        self.camera_1_btn.set_tooltip_text(_("Setup left camera"))
+        self.camera_2_btn.set_tooltip_text(_("Setup right camera"))
 
-    def setup(self, *args, **kwargs):
+        self.menu_project.set_label(_("Project"))
+        self.menu_project_new.set_label(_("New Project"))
+        self.menu_project_open.set_label(_("Open Project"))
+        self.menu_project_edit.set_label(_("Edit Project"))
+        self.menu_project_statistic.set_label(_("Project Statistic"))
+        self.menu_project_close.set_label(_("Close Project"))
+        self.menu_quit.set_label(_("Quit"))
+
+        self.menu_camera.set_label(_("Camera"))
+        self.menu_camera_capture.set_label(_("Take Photos"))
+        self.menu_camera_swap.set_label(_("Swap Cameras"))
+        self.menu_camera_1.set_label(_("Setup Left Camera"))
+        self.menu_camera_2.set_label(_("Setup Right Camera"))
+
+        self.menu_view.set_label(_("View"))
+        self.menu_view_vertical.set_label(_("Vertical"))
+        self.menu_view_horizontal.set_label(_("Horizontal"))
+
+        self.menu_view_vertical.connect("toggled", self.change_view, "vertical")
+        self.menu_view_horizontal.connect("toggled", self.change_view, "horizontal")
+
+    def update_ui(self, *args, **kwargs):
+        _debug_(self, 'open')
         self.title = _("VHD Scan - %s") % Project.get_name()
-        self.swap_btn.props.sensitive = Project.camera_1.active or Project.camera_2.active
-        self.camera_1_label.props.label = Project.camera_1.name
-        self.camera_2_label.props.label = Project.camera_2.name
+        # self.swap_btn.set_sensitive(Project.camera_1.is_ready or Project.camera_2.is_ready)
+        self.update_camera_buttons()
+
+        if Config.get("view") == "vertical":
+            self.menu_view_vertical.set_active(True)
+        elif Config.get("view") == "horizontal":
+            self.menu_view_horizontal.set_active(True)
+
+    def update_camera_buttons(self):
+        self.camera_1_label.set_label(Project.camera_1.name)
+        self.camera_2_label.set_label(Project.camera_2.name)
 
     # hander
     def new_project(self, *args):
-        self.hide()
-        data = New_Project.show()
+        # self.hide()
+        data = Project_Dialog.show("new")
         if data:
             Project.create(data)
-        self.show()
+            self.update_ui()
+        # self.show()
 
     # hander
     def open_project(self, *args):
@@ -581,32 +695,40 @@ class Capture(Window):
         self.show()
 
     # handler
-    def update_project(self, *args):
-        self.hide()
-        data = Update_Project.show()
+    def edit_project(self, *args):
+        # self.hide()
+        data = Project_Dialog.show("edit")
         if data:
             Project.update(data)
-        self.show()
+            Project.save()
+            self.update_ui()
+        # self.show()
 
     # handler
     def capture(self, *args):
         pass
 
+    def show_statistic(self, *args):
+        Statistic.show()
+
     # handler
     def swap_cameras(self, *args):
         Project.camera_1, Project.camera_2 = Project.camera_2, Project.camera_1
         Project.save()
+        self.update_camera_buttons()
 
     # handler
     def setup_camera_1(self, *args):
         self.hide()
-        Setup_Camera.show(Project.camera_1)
+        Setup_Camera.show(Project.camera_1, "left")
+        Project.save()
         self.show()
 
     # hander
     def setup_camera_2(self, *args):
         self.hide()
-        Setup_Camera.show(Project.camera_2)
+        Setup_Camera.show(Project.camera_2, "right")
+        Project.save()
         self.show()
 
     # handler
@@ -614,6 +736,30 @@ class Capture(Window):
         Project.close()
         self.hide()
         Welcome.show()
+
+    # handler
+    def change_view(self, radio, view):
+        if view == "horizontal" and self.menu_view_horizontal.get_active():
+            _debug_(self, "setting view to '%s'" % view)
+            self.camera_box.set_orientation(Gtk.Orientation.HORIZONTAL)
+            Config.set("view", view)
+
+        elif view == "vertical" and self.menu_view_vertical.get_active():
+            _debug_(self, "setting view to '%s'" % view)
+            self.camera_box.set_orientation(Gtk.Orientation.VERTICAL)
+            Config.set("view", view)
+
+
+# ____________________________________________________________________________ #
+
+
+class Statistic(Dialog):
+    def init(self):
+        self.title = _("Project Statistic")
+        self.close_btn.set_label(_("Close"))
+
+    def update_ui(self):
+        pass
 
 
 # ____________________________________________________________________________ #
@@ -629,6 +775,7 @@ class Project:
     @classmethod
     def save(self):
         if self.path:
+            _debug_("Project:: saving to '%s'" % self.path)
             json_save(self.path, {
                 "name": self.name,
                 "format": self.format,
@@ -638,6 +785,7 @@ class Project:
 
     @classmethod
     def create(self, data):
+        _debug_('Project: create')
         self.close()
         self.name = data["name"]
         self.path = data["path"]
@@ -650,23 +798,42 @@ class Project:
 
     @classmethod
     def load(self, path):
+        _debug_("Project:: '%s': loading data" % path)
         self.close()
         data = json_load(path)
         if not data:
+            _debug_("Project:: '%s': empty data" % path)
+            return False
+        if not self.validate_data(data):
+            _debug_("Project:: '%s': no valid data" % path)
             return False
 
         self.path = path
+        self.update(data)
         self.name = data["name"]
         self.format = data["format"]
         self.camera_1 = Camera(**data["camera_1"])
         self.camera_2 = Camera(**data["camera_2"])
         Config.add_recent(self.path)
+        _debug_("Project:: '%s': loaded project data" % path)
+        return True
+
+    @classmethod
+    def update(self, data):
+        _debug_("Project:: '%s': setting project data" % self.path)
+        for key in data:
+            setattr(self, key, data[key])
+
+    @classmethod
+    def validate_data(self, data):
         return True
 
     @classmethod
     def close(self):
-        self.save()
-        self.reset()
+        if self.path:
+            self.save()
+            self.reset()
+            _debug_('Project:: closed')
 
     @classmethod
     def reset(self):
@@ -675,6 +842,7 @@ class Project:
         self.format = None
         self.camera_1 = None
         self.camera_2 = None
+        _debug_('Project:: reset')
 
     @classmethod
     def get_name(self):
@@ -686,9 +854,9 @@ class Project:
     def make_path(path):
         if not path:
             return None
-        if basename(path) == ".vhdscan":
+        if basename(path) == "vhdscan.json":
             return path
-        return join_path(path, ".vhdscan")
+        return join_path(path, "vhdscan.json")
 
     @classmethod
     def is_path(self, path):
@@ -712,68 +880,78 @@ class Camera:
 
     def __init__(self, id=None, config=None):
         self.__output = None
-        self.__zoom = 1
+        self.__zoom = 100
         self.__capture = None
         self.__device = None
-        self.__resolutions = []
+        self.__path = None
+        self.__resolution = None
+        self.__resolutions = None
         self.__controls = []
-        self.__suspended = False
 
         if not self.set_device(id=id):
             return
 
         self.set_config(config)
 
-    def __getattr__(self, p):
-        if p == "path":
-            return self.__device.path if self.active else None
-        if p == "active":
+    def __getattr__(self, name):
+        if name == "is_ready":
             return self.__device is not None
-        if p == "name":
-            return self.__device.name if self.active else _("No Camera")
-        if p == "resolutions":
-            return self.__resolutions
-        if p == "controls":
+        if name == "path":
+            return self.__path
+        if name == "name":
+            return self.__device.name if self.is_ready else _("No Camera")
+        if name == "controls":
             return self.__controls
+        if name == "resolutions":
+            return self.__resolutions
+        raise AttributeError(name)
 
-    def suspend(self):
-        self.__suspended = True
+    def set_device(self, path=None, id=None, device=None):
+        if not device:
+            device = Device_Manager.assign(path=path, id=id)
 
-    def resume(self):
-        self.__suspended = False
-
-    def set_device(self, id=None, path=None):
-        device = Device_Manager.assign(id=id, path=path)
         if device:
-            Device_Manager.free(device=self.__device)
+            self.free_device()
             self.__device = device
             self.__path = device.path
-            self.init_resolutions()
-            self.init_controls()
+            self._init_resolutions()
+            self._init_resolution()
+            self._init_controls()
             return True
         return False
 
-    def get_device(self):
-        return self.__device if self.active else None
+    def free_device(self):
+        if self.__device:
+            self.stop_feed()
+            Device_Manager.free(path=self.__device.path)
+            self.__device = None
+            self.__path = None
+            self.__resolutions = None
+            self.__resolution = None
+            self.__controls = []
 
     def set_config(self, config):
-        if not config:
-            return
+        if not self.is_ready or not config:
+            return False
 
         for property in config:
             self.set(property, config[property])
 
+        return True
+
     def get_config(self):
-        if not self.__device:
+        if not self.is_ready:
             return {"id": "", "config": None}
 
         config = {
             "zoom": self.__zoom,
-            "resolution": self.__resolution
         }
 
-        for control in self.__controls:
-            config[control.name] = control.value
+        if self.__resolution:
+            config["resolution"] = self.__resolution.value
+
+        for name, control in self.__controls.items():
+            config[name] = control.value
 
         return {
             "id": self.__device.id,
@@ -781,7 +959,7 @@ class Camera:
         }
 
     def set(self, property, value):
-        if not self.__device:
+        if not self.is_ready:
             return False
 
         if property == "resolution":
@@ -796,62 +974,79 @@ class Camera:
         if value == self.__controls[property].value:
             return False
 
-        result = exec("v4l2-ctl", "--device", self.path, "--set-ctrl", "{0}={1}".format(property, value))
+        ctrl = "{0}={1}".format(property, value)
+        result = exec("v4l2-ctl", "--device", self.__path, "--set-ctrl", ctrl)
         if result:
             self.__controls[property].value = value
 
         return result
 
     def set_zoom(self, percent=100):
-        self.__zoom = percent / 100
+        self.__zoom = percent
 
-    def set_resolution(self, resolution=None, width=None, height=None, pixelformat=None):
-        if not self.__device:
+    def set_resolution(self, resolution):
+        if not self.is_ready:
             return False
 
-        if resolution:
-            # unpack the resolution string
-            width, height, pixelformat = resolution.split("x", 2)
+        if not isinstance(resolution, Resolution):
+            resolution = self.__resolutions[resolution]
 
-        resolution = "height={0},width={1},pixelformat={2}".format(height, width, pixelformat)
-        success = exec("v4l2-ctl", "--device", self.path, "--set-fmt-video", resolution)
-        if success:
-            self.__device["resolution"] = "{0}x{1}x{2}".format(width, height, pixelformat)
-        return success
+        if not resolution:
+            return False
+
+        fmt = "height={0},width={1},pixelformat={2}".format(
+            resolution.height,
+            resolution.width,
+            resolution.pixelformat
+        )
+        if exec("v4l2-ctl", "--device", self.__path, "--set-fmt-video", fmt):
+            self.__resolution = resolution
+            _debug_(self, "set resolution '%s' on '%s'" % (resolution.value, self.__path))
+            return True
+        return False
 
     def get_resolution(self):
+        return self.__resolution
+
+    def _init_resolution(self):
+        self.__resolution = None
+        if not self.__resolutions:
+            return False
+
         width = 0
         height = 0
         pixelformat = ""
-        for line in cmd("v4l2-ctl", "--device", self.path, "--get-fmt-video"):
+        for line in cmd("v4l2-ctl", "--device", self.__path, "--get-fmt-video"):
             if "Width/Height" in line:
-                width, height = regex(r"(\d+/\d+)", line).split("/", 1)
+                width, height = regex(r"(\d+)/(\d+)", line, [1, 2])
             elif "Pixel Format" in line:
                 pixelformat = regex(r"'([^']+)'", line)
-        return "{0}x{1}x{2}".format(width, height, pixelformat)
+        current = Resolution.stringify(width, height, pixelformat)
+        self.__resolution = self.__resolutions[current]
+        _debug_(self, "loaded resolution '%s' from '%s'" % (current, self.__path))
+        return False
 
-    def init_resolutions(self):
-        self.__resolutions = []
-        for line in cmd("v4l2-ctl", "--device", self.path, "--list-formats-ext"):
+    def _init_resolutions(self):
+        self.__resolutions = Resolution_List()
+        for line in cmd("v4l2-ctl", "--device", self.__path, "--list-formats-ext"):
             if "]: '" in line:
                 pixelformat = regex(r"'([^']+)'", line)
             elif "Size:" in line:
                 width, height = regex(r"(\d+)x(\d+)", line, [1, 2])
-                self.__resolutions.append(Resolution(
-                    width=width,
-                    height=height,
-                    pixelformat=pixelformat
-                ))
+                resolution = Resolution(width, height, pixelformat)
+                self.__resolutions.append(resolution)
+        _debug_(self, "gathered resolutions from '%s'. %s in total" % (self.__path, len(self.__resolutions)))
 
-    def init_controls(self):
+    def _init_controls(self):
         self.__controls = {}
         in_menu = False
-        for line in cmd("v4l2-ctl", "--device", self.path, "--list-ctrls-menus"):
+        for line in cmd("v4l2-ctl", "--device", self.__path, "--list-ctrls-menus"):
             line = line.strip()
             if " 0x" in line:
                 in_menu = False
                 name = line.split("0x", 1)[0].strip()
                 value = int(regex(r"value=(-?\d+)", line))
+                inactive = "flags=inactive" in line
                 if " (int)" in line:
                     control = Control(
                         type=Control.INT,
@@ -861,6 +1056,7 @@ class Camera:
                         max=regex(r"max=(-?\d+)", line),
                         step=regex(r"step=(-?\d+)", line),
                         default=regex(r"default=(-?\d+)", line),
+                        inactive=inactive,
                         camera=self,
                     )
 
@@ -869,15 +1065,17 @@ class Camera:
                         type=Control.BOOL,
                         name=name,
                         value=value,
+                        inactive=inactive,
                         camera=self,
                     )
 
                 elif " (menu)" in line:
                     in_menu = True
                     control = Control(
-                        type=self.MENU,
+                        type=Control.MENU,
                         name=name,
                         value=value,
+                        inactive=inactive,
                         camera=self,
                     )
 
@@ -887,44 +1085,64 @@ class Camera:
                 self.__controls[name] = control
 
             elif in_menu and line:
-                value, text = line.split(": ", 1)
-                control.add_value(int(value), text)
+                menu_value, menu_text = line.split(": ", 1)
+                control.add_value(menu_text, menu_value)
+        _debug_(self, "gathered controls from '%s'. %s in total" % (self.__path, len(self.__controls)))
+
+    def _update_sensitivity(self):
+        if not self.is_ready:
+            return
+
+        for line in cmd("v4l2-ctl", "--device", self.__path, "--list-ctrls-menus"):
+            if "0x" in line:
+                is_sensitive = "flags=inactive" not in line
+                name = line.split("0x", 1)[0].strip()
+                self.__controls[name].set_sensitive(is_sensitive)
 
     def start_feed(self, output):
-        if not self.__device:
+        if not self.is_ready or not self.__resolution:
             return False
 
-        if self.thread > 0:
-            return False
+        if self.thread is not None:
+            self.stop_feed()
 
         self.__output = output
+        self.__capture = cv2.VideoCapture(
+            filename=self.__path,
+            apiPreference=cv2.CAP_V4L2
+        )
+        self.__capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.__resolution.width)
+        self.__capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.__resolution.height)
+        self.__capture.set(cv2.CAP_PROP_FOURCC, self.__resolution.fourcode)
         self.thread = GLib.idle_add(self.__render_frame)
+        _debug_(self, "started feed for '%s'" % self.__path)
         return True
 
     def stop_feed(self):
-        if not self.__device:
+        if not self.is_ready:
             return False
 
-        if self.thread == 0:
+        if self.thread is None:
             return False
 
         GLib.source_remove(self.thread)
+        _debug_(self, "stopped feed for '%s'" % self.__path)
         self.__capture.release()
         self.__capture = None
         self.__output = None
-        self.thread = 0
+        self.thread = None
         return True
 
     def __render_frame(self):
-        if not self.__device:
+        if not self.is_ready:
             return False
 
         ok, frame = self.__capture.read()
         if not ok:
             return False
 
-        width = int(frame.shape[1] * self.__zoom)
-        height = int(frame.shape[0] * self.__zoom)
+        width = int(frame.shape[1] * self.__zoom / 100)
+        height = int(frame.shape[0] * self.__zoom / 100)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         in_height, in_width = frame.shape[0:2]
         pixbuf = GdkPixbuf.Pixbuf.new_from_data(
@@ -943,6 +1161,7 @@ class Camera:
                 interp_type=GdkPixbuf.InterpType.NEAREST,
             ).copy()
         )
+        del pixbuf
         return True
 
     @staticmethod
@@ -959,11 +1178,57 @@ class Camera:
 
 class Resolution:
     def __init__(self, width, height, pixelformat):
+        if "x" in str(width):
+            width, height, pixelformat = str(width).split("x", 2)
         self.width = int(width)
         self.height = int(height)
-        self.pixelformat = pixelformat
+        self.pixelformat = str(pixelformat)
         self.name = "[{0}] {1}x{2}".format(pixelformat, width, height)
         self.fourcode = cv2.VideoWriter_fourcc(*pixelformat)
+        self.value = self.stringify(width, height, pixelformat)
+
+    @staticmethod
+    def stringify(width, height, pixelformat):
+        return "{0}x{1}x{2}".format(width, height, pixelformat)
+
+
+# ____________________________________________________________________________ #
+
+
+class Resolution_List:
+    def __init__(self):
+        self.__list = []
+        self.__keys = []
+
+    def append(self, resolution):
+        if type(resolution) == str:
+            resolution = Resolution(resolution)
+        if not self.__contains__(resolution):
+            self.__list.append(resolution)
+            self.__keys.append(resolution.value)
+
+    def keys(self):
+        return self.__keys.copy()
+
+    def values(self):
+        return self.__list.copy()
+
+    def __len__(self):
+        return len(self.__list)
+
+    def __iter__(self):
+        return iter(self.__list)
+
+    def __contains__(self, resolution):
+        if not isinstance(resolution, Resolution):
+            return False
+        return resolution.value in self.__keys
+
+    def __getitem__(self, key):
+        if key in self.__keys:
+            index = self.__keys.index(key)
+            return self.__list[index]
+        return None
 
 
 # ____________________________________________________________________________ #
@@ -974,40 +1239,38 @@ class Control:
     BOOL = 1
     MENU = 2
 
-    def __init__(self, type, name, value, camera, min=None, max=None, step=None, default=None):
-        if min == 0 and max == 1:
-            type = self.BOOL
-        self.type = type
+    def __init__(self, type, name, value, camera, min=0, max=0, step=0, default=0, inactive=False):
         self.name = name
-        self.value = value
-        self.min = min
-        self.max = max
-        self.step = step
-        self.default = default
+        self.value = int(value)
+        self.min = int(min)
+        self.max = int(max)
+        self.step = int(step)
+        self.default = int(default)
+        self.inactive = inactive
         self.values = []
         self.__inputs = []
         self.__camera = camera
+        if self.min == 0 and self.max == 1:
+            type = self.BOOL
+        self.type = type
 
-    def add_value(self, value, text):
+    def add_value(self, text, value):
         if not self.type == self.MENU:
             return
-        self.values.append([value, text])
+        self.values.append((text, value))
 
     def create_ui(self):
         box = Box(
             orientation=Gtk.Orientation.VERTICAL,
-            spacing=2
+            spacing=4
         )
-        label = Label()
-        label.props.label = _(name)
-        label.props.halign = Gtk.Align.START
+        label = Label(
+            label=_(self.name),
+            halign=Gtk.Align.START
+        )
         box.pack_start(label, False, False, 0)
 
         if self.type == self.INT:
-            scale_box = Box(
-                orientation=Gtk.Orientation.HORIZONTAL,
-                spacing=0
-            )
             adjustment = Gtk.Adjustment(
                 value=self.value,
                 lower=self.min,
@@ -1018,11 +1281,11 @@ class Control:
             )
             scale = Scale(
                 orientation=Gtk.Orientation.HORIZONTAL,
-                adjustment=adjustment
+                adjustment=adjustment,
+                digits=0,
+                draw_value=False,
+                value_pos=Gtk.PositionType.RIGHT
             )
-            scale.props.digits = 0
-            scale.props.draw_value = False
-            scale.value_post = Gtk.PositionType.RIGHT
             scale.add_mark(
                 value=self.default,
                 position=Gtk.PositionType.BOTTOM,
@@ -1046,6 +1309,10 @@ class Control:
             )
             spinbox.props.valign = Gtk.Align.CENTER
             spinbox.connect("value-changed", self.update_int)
+            scale_box = Box(
+                orientation=Gtk.Orientation.HORIZONTAL,
+                spacing=8
+            )
             scale_box.pack_start(scale, True, True, 0)
             scale_box.pack_start(spinbox, False, True, 0)
             box.pack_start(scale_box, True, True, 0)
@@ -1053,42 +1320,50 @@ class Control:
 
         elif self.type == self.BOOL:
             switch = Switch(
+                halign=Gtk.Align.START,
                 hexpand=False,
-                vexpand=False
+                vexpand=False,
+                active=self.value == 1
             )
-            switch.props.active = self.value == 1
-            switch.props.halign = Gtk.Align.START
             switch.connect("notify::active", self.update_bool)
             box.pack_start(switch, False, False, 0)
             self.__inputs = [switch]
 
         elif self.type == self.MENU:
-            combo = ComboBox()
-            list = combo.get_model()
+            selectbox = Selectbox()
+            list = selectbox.get_model()
             i = 0
-            for entry in self.values:
-                list.append(entry)
-                if entry[0] == self.value:
-                    combo.set_active(i)
+            for _text, _value in self.values:
+                selectbox.append(_text, _value)
+                if int(_value) == self.value:
+                    selectbox.set_active(i)
                 i += 1
-            combo.connect("changed", self.update_menu)
-            box.pack_start(combo, True, True, 0)
-            self.__inputs = [combo]
+            selectbox.connect("notify::active", self.update_menu)
+            box.pack_start(selectbox, True, True, 0)
+            self.__inputs = [selectbox]
 
         return box
 
     def update_int(self, scale):
-        self.__camera.set(self.name, int(scale.get_value()))
+        i = int(scale.get_value())
+        _debug_(self, self.name + "(int) setting to " + str(i))
+        self.__camera.set(self.name, i)
 
-    def update_bool(self, switch, active,):
-        self.__camera.set(self.name, switch.get_state())
+    def update_bool(self, switch, *args):
+        state = 1 if switch.get_active() else 0
+        _debug_(self, self.name + "(bool) setting to " + str(state))
+        self.__camera.set(self.name, state)
+        self.__camera._update_sensitivity()
 
-    def update_menu(self, combobox):
-        self.__camera.set(self.name, combobox.get_value(1))
+    def update_menu(self, selectbox, *args):
+        value = selectbox.get_value()
+        _debug_(self, self.name + "(menu) setting to " + str(value))
+        self.__camera.set(self.name, value)
+        self.__camera._update_sensitivity()
 
-    def set_sensitive(self, state):
+    def set_sensitive(self, is_sensitive):
         for input in self.__inputs:
-            input.props.sensitive = state
+            input.set_sensitive(is_sensitive)
 
 # ____________________________________________________________________________ #
 
@@ -1097,12 +1372,18 @@ class Device_Manager:
     __devices = []
 
     @classmethod
-    def get_all(self, only_free=True):
+    def get_all(self, only_free=True, include=[]):
         self.refresh()
         devices = []
+        check_include = bool(include)
         for device in self.__devices:
+            if check_include and device.path in include:
+                devices.append(device)
+                continue
+
             if only_free and device.in_use:
                 continue
+
             devices.append(device)
         return devices
 
@@ -1123,13 +1404,14 @@ class Device_Manager:
         return None
 
     @classmethod
-    def free(self, id=None, path=None, device=None):
-        if not id and not path and not device:
+    def free(self, path=None, device=None):
+        if not path and not device:
             return False
 
         for _device in self.__devices:
-            if (device and _device == device) or (id and device.id == id) or (path and device.path == path):
-                device.in_use = False
+            if (path and _device.path == path) or (_device and _device == device):
+                _debug_("DeviceManager:: device '%s' is now free" % _device.path)
+                _device.in_use = False
                 return True
         return False
 
@@ -1143,6 +1425,7 @@ class Device_Manager:
             if device.in_use:
                 continue
             if (id and device.id == id) or (path and device.path == path):
+                _debug_("DeviceManager:: device '%s' is now in use" % device.path)
                 device.in_use = context
                 return device
         return None
@@ -1221,16 +1504,19 @@ class Device:
 # ____________________________________________________________________________ #
 
 
-class _Unused:
+class Recent:
+    def __init__(self, path):
+        data = json_load(path)
+        if not data:
+            return
 
-    @staticmethod
-    def get_state(path):
-        status = {}
-        for line in cmd("v4l2-ctl", "--device", path, "--list-ctrl-menus"):
-            if "0x" in line:
-                name = line.split("0x", 1)[0].strip()
-                status[name] = "flags=inactive" not in line
-        return status
+        self.path = path
+        self.name = data.get("name", _("Unnamed Project"))
+        nice_path = dirname(path)
+        if not Application.home_path == "~":
+            nice_path = nice_path.replace(Application.home_path, "~")
+        self.nice_path = nice_path
+
 
 # ____________________________________________________________________________ #
 
@@ -1239,6 +1525,7 @@ class Config:
     @classmethod
     def load(self):
         self.__config = {
+            "view": "vertical",
             "recent": []
         }
         self.__config_dir = user_config_dir(appname="vhdscan")
@@ -1255,30 +1542,24 @@ class Config:
         json_save(self.__config_path, self.__config)
 
     @classmethod
-    def __getattr__(self, key):
-        if key == "__config":
-            return self.__config
-        return self.__config.get(key, None)
+    def get(self, key, fallback=None):
+        return self.__config.get(key, fallback)
 
     @classmethod
-    def __setattr__(self, key, value):
+    def set(self, key, value):
         self.__config[key] = value
         self.__save()
 
     @classmethod
     def get_recent(self):
         recents = []
-        home_path = os.path.expanduser("~")
         for path in self.__config["recent"]:
-            if not is_file(path):
+            if not Project.is_path(path):
                 continue
-
-            data = json_load(path)
-            name = data.get("name", _("Unnamed Project"))
-            display_path = path
-            if not home_path == "~":
-                display_path = path.replace(home_path, "~")
-            recents.append((path, display_path, name))
+            recent = Recent(path)
+            if not recent.path:
+                continue
+            recents.append(recent)
         return recents
 
     @classmethod
@@ -1296,9 +1577,10 @@ class Config:
 # ____________________________________________________________________________ #
 
 
-class App:
+class Application:
 
     version = "beta"
+    debug = True
 
     __locale = None
     __l10n = None
@@ -1308,16 +1590,17 @@ class App:
     @classmethod
     def run(self):
         self.__screen = Gdk.Screen.get_default()
+        self.home_path = os.path.expanduser("~")
 
         Config.load()
         self.load_locale()
 
         # Init the dialogs and windows
         Welcome.glade("ui/welcome.glade", "ui/welcome.css")
-        New_Project.glade("ui/new-project.glade")
-        Update_Project.glade("ui/update-project.glade")
+        Project_Dialog.glade("ui/project.glade")
         Capture.glade("ui/capture.glade")
-        Setup_Camera.glade("ui/setup-camera.glade")
+        Statistic.glade("ui/statistic.glade")
+        Setup_Camera.glade("ui/setup.glade")
 
         Welcome.show()
         Gtk.main()
@@ -1369,4 +1652,4 @@ class App:
 
 
 if __name__ == "__main__":
-    App.run()
+    Application.run()

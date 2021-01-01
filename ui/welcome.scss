@@ -1,19 +1,40 @@
 #welcome {
+
   button {
     border-radius: 0px;
-    border-style: none;
+    border-style: solid none;
   }
 
   #app_name {
     font-size: 1.5em;
   }
+
   #version {
     opacity: .8;
   }
-  #recent_list .name {
-    font-weight: bold;
+
+  #recent_list {
+    .name {
+      font-weight: bold;
+    }
+
+    .box {
+      padding: 3px 12px;
+    }
   }
-  #recent_list .box {
-    padding: 3px 12px;
+}
+
+#project {
+  .status {
+    margin-left: 3px
+  }
+  .invalid {
+    .label {
+      font-style: italic;
+    }
+    .status {
+      padding: 2px 8px;
+      border-left: 1px solid red
+    }
   }
 }

@@ -4,140 +4,200 @@
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkWindow" id="root">
     <property name="can-focus">False</property>
-    <property name="title" translatable="yes">VHD Scanner</property>
+    <property name="title" translatable="yes">&lt;title&gt;</property>
     <property name="window-position">center</property>
     <property name="default-width">800</property>
     <property name="default-height">600</property>
     <property name="icon-name">camera-photo</property>
     <signal name="destroy" handler="quit" swapped="no"/>
     <child>
-      <!-- n-columns=2 n-rows=2 -->
-      <object class="GtkGrid">
+      <object class="GtkBox" id="main_box">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
-        <property name="column-homogeneous">True</property>
+        <property name="orientation">vertical</property>
         <child>
-          <object class="GtkBox">
+          <object class="GtkMenuBar">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="orientation">vertical</property>
             <child>
-              <object class="GtkImage" id="camera1_preview">
-                <property name="height-request">80</property>
+              <object class="GtkMenuItem" id="menu_project">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="margin-top">8</property>
-                <property name="margin-bottom">8</property>
-                <property name="icon-name">image-x-generic</property>
-                <property name="icon_size">6</property>
+                <property name="label" translatable="yes">&lt;project&gt;</property>
+                <property name="use-underline">True</property>
+                <child type="submenu">
+                  <object class="GtkMenu">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <child>
+                      <object class="GtkMenuItem" id="menu_project_new">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;new&gt;</property>
+                        <signal name="activate" handler="new_project" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menu_project_open">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;open&gt;</property>
+                        <signal name="activate" handler="open_project" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menu_project_close">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;close&gt;</property>
+                        <signal name="activate" handler="close_project" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSeparatorMenuItem">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menu_project_edit">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;edit&gt;</property>
+                        <signal name="activate" handler="edit_project" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menu_project_statistic">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;statistic&gt;</property>
+                        <property name="use-underline">True</property>
+                        <signal name="activate" handler="show_statistic" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSeparatorMenuItem">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menu_quit">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;quit&gt;</property>
+                        <signal name="activate" handler="quit" swapped="no"/>
+                      </object>
+                    </child>
+                  </object>
+                </child>
               </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
             </child>
             <child>
-              <placeholder/>
+              <object class="GtkMenuItem" id="menu_camera">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">&lt;camera&gt;</property>
+                <property name="use-underline">True</property>
+                <child type="submenu">
+                  <object class="GtkMenu">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <child>
+                      <object class="GtkMenuItem" id="menu_camera_capture">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;capture&gt;</property>
+                        <signal name="activate" handler="capture" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSeparatorMenuItem">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menu_camera_swap">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;swap&gt;</property>
+                        <signal name="activate" handler="swap_cameras" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menu_camera_1">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;camera_1&gt;</property>
+                        <signal name="activate" handler="setup_camera_1" swapped="no"/>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkMenuItem" id="menu_camera_2">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;camera_2&gt;</property>
+                        <signal name="activate" handler="setup_camera_2" swapped="no"/>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkMenuItem" id="menu_view">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">&lt;view&gt;</property>
+                <property name="use-underline">True</property>
+                <child type="submenu">
+                  <object class="GtkMenu">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <child>
+                      <object class="GtkRadioMenuItem" id="menu_view_vertical">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;vertical&gt;</property>
+                        <property name="use-underline">True</property>
+                        <property name="active">True</property>
+                        <property name="draw-as-radio">True</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkRadioMenuItem" id="menu_view_horizontal">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;horizontal&gt;</property>
+                        <property name="use-underline">True</property>
+                        <property name="draw-as-radio">True</property>
+                        <property name="group">menu_view_vertical</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
             </child>
           </object>
           <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">1</property>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
           </packing>
         </child>
         <child>
-          <object class="GtkBox">
+          <object class="GtkBox" id="camera_box">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="orientation">vertical</property>
+            <property name="homogeneous">True</property>
             <child>
-              <object class="GtkImage" id="camera2_preview">
-                <property name="height-request">80</property>
+              <object class="GtkBox" id="camera_1_box">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="margin-top">8</property>
-                <property name="margin-bottom">8</property>
-                <property name="icon-name">image-x-generic</property>
-                <property name="icon_size">6</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <placeholder/>
-            </child>
-          </object>
-          <packing>
-            <property name="left-attach">1</property>
-            <property name="top-attach">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkToolbar">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="icon_size">2</property>
-            <child>
-              <object class="GtkToolButton" id="new_btn">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="use-underline">True</property>
-                <property name="icon-name">document-new</property>
-                <signal name="clicked" handler="new_project" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolButton" id="open_btn">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="use-underline">True</property>
-                <property name="icon-name">document-open</property>
-                <signal name="clicked" handler="open_project" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolButton" id="update_btn">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="use-underline">True</property>
-                <property name="icon-name">document-properties</property>
-                <signal name="clicked" handler="update_project" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolButton" id="capture_btn">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="is-important">True</property>
-                <property name="use-underline">True</property>
-                <property name="icon-name">camera-photo</property>
-                <signal name="clicked" handler="capture" swapped="no"/>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolItem">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
+                <property name="orientation">vertical</property>
                 <child>
                   <object class="GtkButton" id="camera_1_btn">
                     <property name="visible">True</property>
@@ -166,6 +226,7 @@
                             <property name="can-focus">False</property>
                             <property name="margin-left">8</property>
                             <property name="margin-start">8</property>
+                            <property name="label" translatable="yes">&lt;camera.name&gt;</property>
                           </object>
                           <packing>
                             <property name="expand">False</property>
@@ -176,36 +237,45 @@
                       </object>
                     </child>
                   </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkImage" id="camera_1_output">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="icon-name">image-x-generic</property>
+                    <property name="icon_size">6</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <placeholder/>
                 </child>
               </object>
               <packing>
-                <property name="expand">True</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolButton" id="swap_btn">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="use-underline">True</property>
-                <property name="icon-name">object-flip-horizontal</property>
-                <signal name="clicked" handler="swap_cameras" swapped="no"/>
-              </object>
-              <packing>
                 <property name="expand">False</property>
-                <property name="homogeneous">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
               </packing>
             </child>
             <child>
-              <object class="GtkToolItem">
+              <object class="GtkBox" id="camera_2_box">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
+                <property name="orientation">vertical</property>
                 <child>
                   <object class="GtkButton" id="camera_2_btn">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
-                    <signal name="clicked" handler="setup_camera_2" swapped="no"/>
                     <child>
                       <object class="GtkBox">
                         <property name="visible">True</property>
@@ -228,6 +298,7 @@
                             <property name="can-focus">False</property>
                             <property name="margin-left">8</property>
                             <property name="margin-start">8</property>
+                            <property name="label" translatable="yes">&lt;camera.name&gt;</property>
                           </object>
                           <packing>
                             <property name="expand">False</property>
@@ -238,33 +309,40 @@
                       </object>
                     </child>
                   </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkImage" id="camera_2_output">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="icon-name">image-x-generic</property>
+                    <property name="icon_size">6</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <placeholder/>
                 </child>
               </object>
               <packing>
-                <property name="expand">True</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkToolButton" id="close_btn">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="double-buffered">False</property>
-                <property name="margin-start">7</property>
-                <property name="use-underline">True</property>
-                <property name="icon-name">window-close</property>
-                <signal name="clicked" handler="close_project" swapped="no"/>
-              </object>
-              <packing>
                 <property name="expand">False</property>
-                <property name="homogeneous">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
               </packing>
             </child>
           </object>
           <packing>
-            <property name="left-attach">0</property>
-            <property name="top-attach">0</property>
-            <property name="width">2</property>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
           </packing>
         </child>
       </object>

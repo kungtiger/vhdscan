@@ -17,9 +17,13 @@
         <child internal-child="action_area">
           <object class="GtkButtonBox">
             <property name="can-focus">False</property>
+            <property name="margin-end">8</property>
+            <property name="margin-top">12</property>
+            <property name="margin-bottom">8</property>
             <property name="layout-style">end</property>
             <child>
               <object class="GtkButton" id="close_btn">
+                <property name="label" translatable="yes">&lt;close&gt;</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">True</property>
@@ -28,7 +32,7 @@
               <packing>
                 <property name="expand">True</property>
                 <property name="fill">True</property>
-                <property name="position">0</property>
+                <property name="position">1</property>
               </packing>
             </child>
           </object>
@@ -44,21 +48,69 @@
             <property name="can-focus">False</property>
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkBox" id="setup_toolbar">
+              <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="double-buffered">False</property>
-                <property name="margin-right">6</property>
                 <property name="margin-start">6</property>
                 <property name="margin-end">6</property>
                 <property name="margin-top">2</property>
                 <property name="margin-bottom">2</property>
-                <property name="spacing">4</property>
+                <property name="spacing">12</property>
+                <property name="homogeneous">True</property>
                 <child>
-                  <placeholder/>
+                  <object class="GtkBox" id="device_box">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="spacing">8</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="icon-name">camera-photo</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkBox" id="resolution_box">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="spacing">8</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="icon-name">image-x-generic-symbolic</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
                 </child>
               </object>
               <packing>
@@ -84,7 +136,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <child>
-                          <object class="GtkImage" id="feed">
+                          <object class="GtkImage" id="feed_output">
                             <property name="height-request">80</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
@@ -116,8 +168,12 @@
                           <object class="GtkBox" id="controls">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="margin-start">10</property>
+                            <property name="margin-end">10</property>
+                            <property name="margin-top">10</property>
+                            <property name="margin-bottom">10</property>
                             <property name="orientation">vertical</property>
-                            <property name="spacing">8</property>
+                            <property name="spacing">12</property>
                             <child>
                               <placeholder/>
                             </child>
