@@ -15,6 +15,7 @@
         <property name="can-focus">False</property>
         <child>
           <object class="GtkScrolledWindow" id="recent_scroll">
+            <property name="name">recent_scroll</property>
             <property name="width-request">180</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>
@@ -24,6 +25,7 @@
               <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
+                <property name="shadow-type">none</property>
                 <child>
                   <object class="GtkBox" id="recent_list">
                     <property name="name">recent_list</property>
@@ -201,6 +203,7 @@
             </child>
             <child>
               <object class="GtkButton" id="new_btn">
+                <property name="name">new_button</property>
                 <property name="height-request">40</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
@@ -228,6 +231,7 @@
                     </child>
                     <child>
                       <object class="GtkLabel" id="new_label">
+                        <property name="name">new_label</property>
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">&lt;new&gt;</property>
@@ -249,6 +253,7 @@
             </child>
             <child>
               <object class="GtkButton" id="open_btn">
+                <property name="name">open_btn</property>
                 <property name="height-request">40</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
@@ -276,6 +281,7 @@
                     </child>
                     <child>
                       <object class="GtkLabel" id="open_label">
+                        <property name="name">open_label</property>
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">&lt;open&gt;</property>

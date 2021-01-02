@@ -188,16 +188,18 @@ class FileChooserDialog(Gtk.FileChooserDialog, UI):
 
 class Window(UI):
 
+    __name = None
     instance = None
 
     @classmethod
-    def glade(self, *args):
-        self.instance = self(*args)
+    def glade(self, name, *args, **kwargs):
+        self.__name = name
+        self.instance = self(*args, **kwargs)
 
     @classmethod
     def show(self, *args, **kwargs):
-        self.instance.update_ui(*args, **kwargs)
         self.instance.root.show()
+        self.instance.update_ui(*args, **kwargs)
 
     @classmethod
     def hide(self):
@@ -321,7 +323,7 @@ class Welcome(Window):
                 btn = Button()
                 btn.add_class("button")
                 btn.connect("clicked", self.open_recent, recent.path)
-                btn.set_relief = Gtk.ReliefStyle.NONE
+                btn.set_relief(Gtk.ReliefStyle.NONE)
                 btn.add(box)
 
                 self.recent_list.pack_start(btn, False, False, 0)
@@ -1572,7 +1574,7 @@ class Config:
                 break
         paths.insert(0, path)
         if len(paths) > 15:
-            self.__config["recent"] = paths[0:15]
+            self.__config["recent"] = paths[0:10]
         self.__save()
 
 
@@ -1616,11 +1618,10 @@ class Application:
         Locale.load(Config.get("locale"))
 
         # Init the dialogs and windows
-        Welcome.glade("ui/welcome.glade", "ui/welcome.css")
-        ProjectDialog.glade("ui/project.glade")
-        CaptureWindow.glade("ui/capture.glade")
-        StatisticDialog.glade("ui/statistic.glade")
-        SetupDialog.glade("ui/setup.glade")
+        Welcome.glade("welcome", "ui/welcome.glade", "ui/welcome.css")
+        ProjectDialog.glade("project", "ui/project.glade")
+        CaptureWindow.glade("capture", "ui/capture.glade")
+        SetupDialog.glade("setup", "ui/setup.glade")
 
         Welcome.show()
         Gtk.main()

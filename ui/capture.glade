@@ -69,7 +69,6 @@
                     </child>
                     <child>
                       <object class="GtkMenuItem" id="menu_project_statistic">
-                        <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">&lt;statistic&gt;</property>
                         <property name="use-underline">True</property>
