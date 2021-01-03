@@ -127,36 +127,73 @@ class Button(Gtk.Button, UI):
 
 class Selectbox(Gtk.ComboBox, UI):
 
+    TEXT = 0
+    VALUE = 1
+    SENSITIVE = 2
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.__model = Gtk.ListStore(str, str)
+        # text value sensitive
+        types = [str, str, bool]
+        self.__model = Gtk.ListStore(*types)
         self.set_model(self.__model)
 
-        self.__cell = Gtk.CellRendererText()
-        self.pack_start(self.__cell, 25)
-        self.add_attribute(self.__cell, "text", 0)
+        cell = Gtk.CellRendererText()
+        self.pack_start(cell, False)
+        self.add_attribute(cell, "text", self.TEXT)
+        self.add_attribute(cell, "sensitive", self.SENSITIVE)
 
     def get_value(self, fallback=None):
-        index = self.get_active()
-        if index < 0:
+        iter = self.get_active_iter()
+        if iter is None:
             return fallback
-        model = self.get_model()
-        return model[index][1]
+        return self.__model.get_value(iter, self.VALUE)
 
     def set_value(self, value):
-        index = 0
-        for row in self.__model:
-            if row[1] == value:
-                self.set_active(index)
+        iter = self.__model.get_iter_first()
+        while iter is not None:
+            _value = self.__model.get_value(iter, self.VALUE)
+            if value == _value:
+                self.set_active_iter(iter)
                 return True
-            index += 1
-        return False
+            iter = self.__model.iter_next(iter)
+        raise ValueError()
+
+    def set_sensitive(self, value, sensitive):
+        if type(value) == bool:
+            super().set_sensitive(value)
+            return
+
+        if isinstance(value, Gtk.TreeIter):
+            self.__model.set_value(value, self.SENSITIVE, bool(sensitive))
+            return True
+
+        iter = self.__model.get_iter_first()
+        while iter is not None:
+            _value = self.__model.get_value(iter, self.VALUE)
+            if value == _value:
+                self.__model.set_value(iter, self.SENSITIVE, bool(sensitive))
+                return True
+            iter = self.__model.iter_next(iter)
+        raise ValueError()
+
+    def get_sensitive(self, value=None):
+        if value is None:
+            return super().get_sensitive()
+
+        iter = self.__model.get_iter_first()
+        while iter is not None:
+            _value = self.__model.get_value(iter, self.VALUE)
+            if value == _value:
+                return self.__model.get_value(iter, self.SENSITIVE)
+            iter = self.__model.iter_next(iter)
+        raise ValueError()
 
     def append(self, text, value=None):
         if value is None:
             value = text
-        self.__model.append([text, value])
+        return self.__model.append([text, value, True])
 
     def clear(self):
         self.__model.clear()
@@ -397,7 +434,7 @@ class ProjectDialog(Dialog):
         self.format_label = Label(label=_("Image Format"), halign=Gtk.Align.START)
         self.format_select = Selectbox()
         for format in Camera.get_image_formats():
-            self.format_select.append(format)
+            self.format_select.append(**format)
         self.format_select.show()
         self.format_box.pack_start(self.format_label, False, True, 0)
         self.format_box.pack_start(self.format_select, False, True, 0)
@@ -562,21 +599,18 @@ class SetupDialog(Dialog):
         self.resolution_select.clear()
         self.resolution_box.hide()
 
+        camera_set = False
         self.device_select.clear()
         self.device_select.append(_("Keine Kamera"), "")
-        i = 0
-        camera_set = False
-        devices = DeviceManager.get_all(
-            only_free=True,
-            include=self.__camera.path
-        )
-        _debug_(self, "DeviceManager yielts %s devices" % len(devices))
-        for device in devices:
-            i += 1
-            self.device_select.append(device.name, device.path)
-            if device.path == camera.path:
-                self.device_select.set_active(i)
+        for device in DeviceManager.get():
+            iter = self.device_select.append(device.name, device.path)
+            is_current = device.path == camera.path
+            if device.in_use and not is_current:
+                self.device_select.set_value_sensitive(iter, False)
+            if is_current:
+                self.device_select.set_active_iter(iter)
                 camera_set = True
+
         if not camera_set:
             _debug_(self, "setup: selected no device")
             self.device_select.set_active(0)
@@ -634,14 +668,10 @@ class SetupDialog(Dialog):
 class CaptureWindow(Window):
 
     def init(self):
-        self.camera_1_btn.set_tooltip_text(_("Setup left camera"))
-        self.camera_2_btn.set_tooltip_text(_("Setup right camera"))
-
         self.menu_project.set_label(_("Project"))
         self.menu_project_new.set_label(_("New Project"))
         self.menu_project_open.set_label(_("Open Project"))
         self.menu_project_edit.set_label(_("Edit Project"))
-        self.menu_project_statistic.set_label(_("Project Statistic"))
         self.menu_project_close.set_label(_("Close Project"))
         self.menu_quit.set_label(_("Quit"))
 
@@ -655,13 +685,41 @@ class CaptureWindow(Window):
         self.menu_view_vertical.set_label(_("Vertical"))
         self.menu_view_horizontal.set_label(_("Horizontal"))
 
+        self.capture_label.set_label(_("Scan"))
+        self.page_number_label.set_label(_("Nächste Seitenzahl"))
+        self.setup_1_btn.set_tooltip_text(_("Setup left camera"))
+        self.setup_2_btn.set_tooltip_text(_("Setup right camera"))
+        self.camera_1_label.set_label(_("Left Camera"))
+        self.camera_2_label.set_label(_("Right Camera"))
+        self.filename_1_label.set_label(_("Dateiname"))
+        self.filename_2_label.set_label(_("Dateiname"))
+        self.zoom_in_1.set_tooltip_text(_("Zoom in"))
+        self.zoom_in_2.set_tooltip_text(_("Zoom in"))
+        self.zoom_out_1.set_tooltip_text(_("Zoom out"))
+        self.zoom_out_2.set_tooltip_text(_("Zoom out"))
+        self.zoom_fit_1.set_tooltip_text(_("Zoom to fit"))
+        self.zoom_fit_2.set_tooltip_text(_("Zoom to fit"))
+
         self.menu_view_vertical.connect("toggled", self.change_view, "vertical")
         self.menu_view_horizontal.connect("toggled", self.change_view, "horizontal")
+        self.setup_1_btn.connect("clicked", self.setup_camera_1)
+        self.setup_2_btn.connect("clicked", self.setup_camera_2)
+        self.capture_btn.connect("clicked", self.capture)
+
+        self.page_number_adjustment = Gtk.Adjustment(
+            value=1,
+            upper=10000,
+            lower=1,
+            step_increment=1,
+            page_increment=10,
+            page_size=0
+        )
+        self.page_number_input.set_adjustment(self.page_number_adjustment)
 
     def update_ui(self, *args, **kwargs):
         _debug_(self, 'open')
         self.title = _("VHD Scan - %s") % Project.get_name()
-        # self.swap_btn.set_sensitive(Project.camera_1.is_ready or Project.camera_2.is_ready)
+        self.menu_camera_swap.set_sensitive(Project.camera_1.is_ready or Project.camera_2.is_ready)
         self.update_camera_buttons()
 
         if Config.get("view") == "vertical":
@@ -670,8 +728,17 @@ class CaptureWindow(Window):
             self.menu_view_horizontal.set_active(True)
 
     def update_camera_buttons(self):
-        self.camera_1_label.set_label(Project.camera_1.name)
-        self.camera_2_label.set_label(Project.camera_2.name)
+        has_camera_1 = Project.camera_1.is_ready
+        self.camera_1_name.set_label(Project.camera_1.name)
+        self.camera_1_toolbar.set_sensitive(has_camera_1)
+
+        has_camera_2 = Project.camera_2.is_ready
+        self.camera_2_name.set_label(Project.camera_2.name)
+        self.camera_2_toolbar.set_sensitive(has_camera_2)
+
+        has_a_camera = has_camera_1 or has_camera_2
+        self.menu_camera_capture.set_sensitive(has_a_camera)
+        self.capture_toolbar.set_sensitive(has_a_camera)
 
     # hander
     def new_project(self, *args):
@@ -1171,7 +1238,10 @@ class Camera:
         formats = []
         for format in GdkPixbuf.Pixbuf.get_formats():
             if format.is_writable():
-                formats.append(format.get_name())
+                formats.append({
+                    "text": format.get_description(),
+                    "value": format.get_name()
+                })
         return formats
 
 
@@ -1374,36 +1444,9 @@ class DeviceManager:
     __devices = []
 
     @classmethod
-    def get_all(self, only_free=True, include=[]):
+    def get(self):
         self.refresh()
-        devices = []
-        check_include = bool(include)
-        for device in self.__devices:
-            if check_include and device.path in include:
-                devices.append(device)
-                continue
-
-            if only_free and device.in_use:
-                continue
-
-            devices.append(device)
-        return devices
-
-    @classmethod
-    def get(self, id=None, path=None):
-        if not id and not path:
-            return None
-
-        self.refresh()
-        if id:
-            for device in self.__devices:
-                if device.id == id:
-                    return device
-        elif path:
-            for device in self.__devices:
-                if device.path == path:
-                    return device
-        return None
+        return self.__devices.copy()
 
     @classmethod
     def free(self, path=None, device=None):

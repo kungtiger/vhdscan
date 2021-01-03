@@ -1,6 +1,6 @@
 #welcome button { border-radius: 0px; border-style: solid none; }
 
-#welcome #app_name { font-size: 1.5em; }
+#welcome #app_name { font-size: 150%; }
 
 #welcome #version { opacity: .8; }
 
@@ -13,3 +13,7 @@
 #project .invalid .label { font-style: italic; }
 
 #project .invalid .status { padding: 2px 8px; border-left: 1px solid red; }
+
+#capture #camera_1_name, #capture #camera_2_name { font-weight: bold; }
+
+#capture #capture_label { font-size: 120%; }
