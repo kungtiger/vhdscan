@@ -118,7 +118,15 @@ class Label(Gtk.Label, UI):
 
 
 class Box(Gtk.Box, UI):
-    pass
+
+    def pack_start(self, child, expand=False, fill=True, padding=0):
+        super().pack_start(child, expand, fill, padding)
+
+    def pack_end(self, child, expand=False, fill=True, padding=0):
+        super().pack_end(child, expand, fill, padding)
+
+    def set_child_packing(self, child, pack_type=Gtk.PackType.START, expand=False, fill=True, padding=0):
+        super().set_child_packing(child, expand, fill, padding, pack_type)
 
 
 class Button(Gtk.Button, UI):
@@ -158,7 +166,7 @@ class Selectbox(Gtk.ComboBox, UI):
                 self.set_active_iter(iter)
                 return True
             iter = self.__model.iter_next(iter)
-        raise ValueError()
+        raise ValueError("Cannot set active row for value '%s'" % value)
 
     def set_sensitive(self, value, sensitive):
         if type(value) == bool:
@@ -176,7 +184,7 @@ class Selectbox(Gtk.ComboBox, UI):
                 self.__model.set_value(iter, self.SENSITIVE, bool(sensitive))
                 return True
             iter = self.__model.iter_next(iter)
-        raise ValueError()
+        raise ValueError("Cannot set sensitivity for value '%s'" % value)
 
     def get_sensitive(self, value=None):
         if value is None:
@@ -188,7 +196,7 @@ class Selectbox(Gtk.ComboBox, UI):
             if value == _value:
                 return self.__model.get_value(iter, self.SENSITIVE)
             iter = self.__model.iter_next(iter)
-        raise ValueError()
+        raise ValueError("Cannot get sensitivity for value '%s'" % value)
 
     def append(self, text, value=None):
         if value is None:
@@ -218,6 +226,45 @@ class FileChooserDialog(Gtk.FileChooserDialog, UI):
         if not file:
             return fallback
         return file.get_path()
+
+
+class ScrolledImage:
+    # TODO: fix drag'n'scroll
+
+    def __init__(self, scrolled, eventbox):
+        self.__x_scroll = scrolled.get_hadjustment()
+        self.__y_scroll = scrolled.get_vadjustment()
+        self.__dragging = False
+        self.__prev_event_x = 0
+        self.__prev_event_y = 0
+        self.__prev_pos_x = 0
+        self.__prev_pos_y = 0
+        eventbox.connect("button-press-event", self.__start_drag)
+        eventbox.connect("button-release-event", self.__stop_drag)
+        eventbox.connect("motion-notify-event", self.__do_drag)
+
+    def __start_drag(self, widget, event):
+        if event.button == 1:
+            self.__dragging = True
+            self.__prev_event_x = event.x
+            self.__prev_event_y = event.y
+            self.__prev_pos_x = self.__x_scroll.get_value()
+            self.__prev_pos_y = self.__y_scroll.get_value()
+
+    def __stop_drag(self, *args):
+        self.__dragging = False
+
+    def __do_drag(self, widget, event):
+        if not self.__dragging:
+            return
+
+        delta_x = self.__prev_event_x - event.x
+        pos_x = self.__prev_pos_x - delta_x
+        self.__x_scroll.set_value(pos_x)
+
+        delta_y = self.__prev_event_y - event.y
+        pos_y = self.__prev_pos_y - delta_y
+        self.__y_scroll.set_value(pos_y)
 
 
 # ____________________________________________________________________________ #
@@ -354,8 +401,8 @@ class Welcome(Window):
                     spacing=2
                 )
                 box.add_class("box")
-                box.pack_start(name, False, False, 0)
-                box.pack_start(path, False, False, 0)
+                box.pack_start(name, fill=False)
+                box.pack_start(path, fill=False)
 
                 btn = Button()
                 btn.add_class("button")
@@ -409,8 +456,8 @@ class ProjectDialog(Dialog):
             placeholder_text=_("Unnamed Project"),
             width_request=300
         )
-        self.name_box.pack_start(self.name_label, False, True, 0)
-        self.name_box.pack_start(self.name_input, False, True, 0)
+        self.name_box.pack_start(self.name_label)
+        self.name_box.pack_start(self.name_input)
 
         self.path_box = Box(orientation=Gtk.Orientation.VERTICAL)
         self.basename_label = Label()
@@ -423,12 +470,12 @@ class ProjectDialog(Dialog):
         self.path_btn = Button()
         self.path_btn.connect("clicked", self.choose_path)
 
-        self.basename_box.pack_start(self.basename_icon, False, False, 0)
-        self.basename_box.pack_start(self.basename_label, False, False, 8)
+        self.basename_box.pack_start(self.basename_icon, fill=False)
+        self.basename_box.pack_start(self.basename_label, fill=False, padding=8)
         self.path_btn.add(self.basename_box)
-        self.path_box.pack_start(self.path_label, False, True, 0)
-        self.path_box.pack_start(self.path_btn, False, False, 0)
-        self.path_box.pack_start(self.path_status, False, False, 0)
+        self.path_box.pack_start(self.path_label)
+        self.path_box.pack_start(self.path_btn, fill=False)
+        self.path_box.pack_start(self.path_status, fill=False)
 
         self.format_box = Box(orientation=Gtk.Orientation.VERTICAL)
         self.format_label = Label(label=_("Image Format"), halign=Gtk.Align.START)
@@ -436,12 +483,12 @@ class ProjectDialog(Dialog):
         for format in Camera.get_image_formats():
             self.format_select.append(**format)
         self.format_select.show()
-        self.format_box.pack_start(self.format_label, False, True, 0)
-        self.format_box.pack_start(self.format_select, False, True, 0)
+        self.format_box.pack_start(self.format_label)
+        self.format_box.pack_start(self.format_select)
 
-        self.form_box.pack_start(self.name_box, False, True, 0)
-        self.form_box.pack_start(self.path_box, False, True, 0)
-        self.form_box.pack_start(self.format_box, False, True, 0)
+        self.form_box.pack_start(self.name_box, False, False, 0)
+        self.form_box.pack_start(self.path_box, False, False, 0)
+        self.form_box.pack_start(self.format_box, False, False, 0)
         self.form_box.show_all()
 
     def update_ui(self, mode):
@@ -575,12 +622,12 @@ class SetupDialog(Dialog):
 
         self.device_select = Selectbox()
         self.device_select.connect("notify::active", self.select_device)
-        self.device_box.pack_start(self.device_select, True, True, 0)
+        self.device_box.pack_start(self.device_select, False, False, 0)
         self.device_select.show()
 
         self.resolution_select = Selectbox()
         self.resolution_select.connect("notify::active", self.select_resolution)
-        self.resolution_box.pack_start(self.resolution_select, True, True, 0)
+        self.resolution_box.pack_start(self.resolution_select, False, False, 0)
         self.resolution_select.show()
 
     def update_ui(self, camera, slot):
@@ -606,7 +653,7 @@ class SetupDialog(Dialog):
             iter = self.device_select.append(device.name, device.path)
             is_current = device.path == camera.path
             if device.in_use and not is_current:
-                self.device_select.set_value_sensitive(iter, False)
+                self.device_select.set_sensitive(iter, False)
             if is_current:
                 self.device_select.set_active_iter(iter)
                 camera_set = True
@@ -640,7 +687,7 @@ class SetupDialog(Dialog):
         if self.__camera.is_ready:
             for control in self.__camera.controls.values():
                 box = control.create_ui()
-                self.controls.pack_start(box, False, False, 0)
+                self.controls.pack_start(box, fill=False)
                 self.controls.show_all()
             self.__camera._update_sensitivity()
 
@@ -668,15 +715,16 @@ class SetupDialog(Dialog):
 class CaptureWindow(Window):
 
     def init(self):
-        self.menu_project.set_label(_("Project"))
-        self.menu_project_new.set_label(_("New Project"))
-        self.menu_project_open.set_label(_("Open Project"))
-        self.menu_project_edit.set_label(_("Edit Project"))
-        self.menu_project_close.set_label(_("Close Project"))
+        self.menu_file.set_label(_("File"))
+        self.menu_new.set_label(_("New Project"))
+        self.menu_open.set_label(_("Open Project"))
+        self.menu_edit.set_label(_("Edit Project"))
+        self.menu_close.set_label(_("Close Project"))
+        self.menu_options.set_label(_("Options"))
         self.menu_quit.set_label(_("Quit"))
 
         self.menu_camera.set_label(_("Camera"))
-        self.menu_camera_capture.set_label(_("Take Photos"))
+        self.menu_capture.set_label(_("Take Photos"))
         self.menu_camera_swap.set_label(_("Swap Cameras"))
         self.menu_camera_1.set_label(_("Setup Left Camera"))
         self.menu_camera_2.set_label(_("Setup Right Camera"))
@@ -716,11 +764,31 @@ class CaptureWindow(Window):
         )
         self.page_number_input.set_adjustment(self.page_number_adjustment)
 
+        self.dragscroll_1 = ScrolledImage(self.scroll_1, self.output_event_1)
+        self.dragscroll_2 = ScrolledImage(self.scroll_2, self.output_event_2)
+
+        self.image_format_label.set_label(_("Image Format"))
+        self.image_format_select = Selectbox()
+        for format in Camera.get_image_formats():
+            self.image_format_select.append(**format)
+        self.image_format_select.show()
+        self.image_format_box.add(self.image_format_select)
+
     def update_ui(self, *args, **kwargs):
         _debug_(self, 'open')
         self.title = _("VHD Scan - %s") % Project.get_name()
         self.menu_camera_swap.set_sensitive(Project.camera_1.is_ready or Project.camera_2.is_ready)
         self.update_camera_buttons()
+        self.image_format_select.set_value(Project.format)
+
+        step_increment = 0
+        if Project.camera_1.is_ready:
+            step_increment += 1
+        if Project.camera_2.is_ready:
+            step_increment += 1
+        self.page_number_adjustment.set_step_increment(step_increment)
+        self.page_number_adjustment.set_value(Project.page)
+        self.page_number_input.set_sensitive(Project.camera_1.is_ready or Project.camera_2.is_ready)
 
         if Config.get("view") == "vertical":
             self.menu_view_vertical.set_active(True)
@@ -728,6 +796,7 @@ class CaptureWindow(Window):
             self.menu_view_horizontal.set_active(True)
 
     def update_camera_buttons(self):
+        # TODO: show warning if camera assignment failed
         has_camera_1 = Project.camera_1.is_ready
         self.camera_1_name.set_label(Project.camera_1.name)
         self.camera_1_toolbar.set_sensitive(has_camera_1)
@@ -737,7 +806,7 @@ class CaptureWindow(Window):
         self.camera_2_toolbar.set_sensitive(has_camera_2)
 
         has_a_camera = has_camera_1 or has_camera_2
-        self.menu_camera_capture.set_sensitive(has_a_camera)
+        self.menu_capture.set_sensitive(has_a_camera)
         self.capture_toolbar.set_sensitive(has_a_camera)
 
     # hander
@@ -771,8 +840,8 @@ class CaptureWindow(Window):
     def capture(self, *args):
         pass
 
-    def show_statistic(self, *args):
-        StatisticDialog.show()
+    def show_options(self, *args):
+        OptionsDialog.show()
 
     # handler
     def swap_cameras(self, *args):
@@ -812,17 +881,29 @@ class CaptureWindow(Window):
             self.camera_box.set_orientation(Gtk.Orientation.VERTICAL)
             Config.set("view", view)
 
+    # handler
+    def change_page_number(self, *args):
+        pass
 
 # ____________________________________________________________________________ #
 
 
-class StatisticDialog(Dialog):
+class OptionsDialog(Dialog):
     def init(self):
-        self.title = _("Project Statistic")
-        self.close_btn.set_label(_("Close"))
+        self.title = _("Options")
+        self.cancel_btn.set_label(_("Cancel"))
+        self.save_btn.set_label(_("Save"))
+        self.name_pattern_label.set_label(_("File Name Pattern"))
+        self.duplicate_handle_label.set_label(_("How to handle existing photos"))
+        self.duplicate_handle_select = Selectbox()
+        self.duplicate_handle_select.append(_("Replace"), "replace")
+        self.duplicate_handle_select.append(_("Append a number"), "suffix")
+        self.duplicate_handle_select.append(_("Ask every time"), "ask")
+        self.duplicate_handle_select.show()
+        self.duplicate_handle_box.pack_start(self.duplicate_handle_select, False, True, 0)
 
     def update_ui(self):
-        pass
+        self.duplicate_handle_select.set_value(Config.get("duplicate-handle"))
 
 
 # ____________________________________________________________________________ #
@@ -831,9 +912,20 @@ class StatisticDialog(Dialog):
 class Project:
     path = None
     name = ""
+    page = None
     format = None
     camera_1 = None
     camera_2 = None
+
+    @staticmethod
+    def __empty_project():
+        return {
+            "name": "",
+            "format": None,
+            "page": 1,
+            "camera_1": None,
+            "camera_2": None,
+        }
 
     @classmethod
     def save(self):
@@ -842,6 +934,7 @@ class Project:
             json_save(self.path, {
                 "name": self.name,
                 "format": self.format,
+                "page": self.page,
                 "camera_1": self.camera_1.get_config(),
                 "camera_2": self.camera_2.get_config(),
             })
@@ -852,6 +945,7 @@ class Project:
         self.close()
         self.name = data["name"]
         self.path = data["path"]
+        self.page = 1
         self.format = data["format"]
         self.camera_1 = Camera()
         self.camera_2 = Camera()
@@ -863,7 +957,9 @@ class Project:
     def load(self, path):
         _debug_("Project:: '%s': loading data" % path)
         self.close()
-        data = json_load(path)
+        _data = json_load(path)
+        data = self.__empty_project()
+        data.update(_data)
         if not data:
             _debug_("Project:: '%s': empty data" % path)
             return False
@@ -874,6 +970,7 @@ class Project:
         self.path = path
         self.update(data)
         self.name = data["name"]
+        self.page = data["page"]
         self.format = data["format"]
         self.camera_1 = Camera(**data["camera_1"])
         self.camera_2 = Camera(**data["camera_2"])
@@ -889,6 +986,7 @@ class Project:
 
     @classmethod
     def validate_data(self, data):
+        data["page"] = max(1, int(data["page"]))
         return True
 
     @classmethod
@@ -902,6 +1000,7 @@ class Project:
     def reset(self):
         self.path = None
         self.name = ""
+        self.page = None
         self.format = None
         self.camera_1 = None
         self.camera_2 = None
@@ -931,6 +1030,18 @@ class Project:
     @staticmethod
     def is_empty(path):
         return is_dir(path) and not os.listdir(path)
+
+    @classmethod
+    def next_page(self):
+        inc = 0
+        if self.camera_1.is_ready:
+            inc += 1
+        if self.camera_2.is_ready:
+            inc += 1
+        if inc == 0:
+            return False
+        self.page += inc
+        return True
 
 
 # ____________________________________________________________________________ #
@@ -1340,7 +1451,7 @@ class Control:
             label=_(self.name),
             halign=Gtk.Align.START
         )
-        box.pack_start(label, False, False, 0)
+        box.pack_start(label, fill=False)
 
         if self.type == self.INT:
             adjustment = Gtk.Adjustment(
@@ -1385,9 +1496,9 @@ class Control:
                 orientation=Gtk.Orientation.HORIZONTAL,
                 spacing=8
             )
-            scale_box.pack_start(scale, True, True, 0)
-            scale_box.pack_start(spinbox, False, True, 0)
-            box.pack_start(scale_box, True, True, 0)
+            scale_box.pack_start(scale, expand=True)
+            scale_box.pack_start(spinbox)
+            box.pack_start(scale_box, expand=False)
             self.__inputs = [scale, spinbox]
 
         elif self.type == self.BOOL:
@@ -1398,7 +1509,7 @@ class Control:
                 active=self.value == 1
             )
             switch.connect("notify::active", self.update_bool)
-            box.pack_start(switch, False, False, 0)
+            box.pack_start(switch, fill=False)
             self.__inputs = [switch]
 
         elif self.type == self.MENU:
@@ -1411,7 +1522,7 @@ class Control:
                     selectbox.set_active(i)
                 i += 1
             selectbox.connect("notify::active", self.update_menu)
-            box.pack_start(selectbox, True, True, 0)
+            box.pack_start(selectbox, expand=True)
             self.__inputs = [selectbox]
 
         return box
@@ -1572,6 +1683,7 @@ class Config:
         self.__config = {
             "locale": "de",
             "view": "vertical",
+            "duplicate-handle": "ask",
             "recent": []
         }
         self.__config_dir = user_config_dir(appname="vhdscan")
@@ -1665,6 +1777,7 @@ class Application:
         ProjectDialog.glade("project", "ui/project.glade")
         CaptureWindow.glade("capture", "ui/capture.glade")
         SetupDialog.glade("setup", "ui/setup.glade")
+        OptionsDialog.glade("options", "ui/options.glade")
 
         Welcome.show()
         Gtk.main()
