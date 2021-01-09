@@ -6,6 +6,7 @@ import os
 import re
 import json
 import subprocess
+import unicodedata
 
 from appdirs import *
 from os.path import basename, dirname, isdir as is_dir, isfile as is_file, join as join_path
@@ -85,6 +86,46 @@ def regex(pattern, string, group=1, flags=0):
     if match:
         return match.group(*group)
     return None
+
+
+def sanitize_filename(filename):
+    blacklist = ["\\", "/", ":", "*", "?", "\"", "<", ">", "|", "\0"]
+    reserved = [
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5",
+        "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5",
+        "LPT6", "LPT7", "LPT8", "LPT9",
+    ]  # Reserved words on Windows
+    filename = "".join(c for c in filename if c not in blacklist)
+    # Remove all charcters below code point 32
+    filename = "".join(c for c in filename if 31 < ord(c))
+    filename = unicodedata.normalize("NFKD", filename)
+    filename = filename.rstrip(". ")  # Windows does not allow these at end
+    filename = filename.strip()
+    if all([x == "." for x in filename]):
+        filename = "__" + filename
+    if filename in reserved:
+        filename = "__" + filename
+    if len(filename) == 0:
+        filename = "__"
+    if len(filename) > 255:
+        parts = re.split(r"/|\\", filename)[-1].split(".")
+        if len(parts) > 1:
+            ext = "." + parts.pop()
+            filename = filename[:-len(ext)]
+        else:
+            ext = ""
+        if filename == "":
+            filename = "__"
+        if len(ext) > 254:
+            ext = ext[254:]
+        maxl = 255 - len(ext)
+        filename = filename[:maxl]
+        filename = filename + ext
+        # Re-check last character (if there was no extension)
+        filename = filename.rstrip(". ")
+        if len(filename) == 0:
+            filename = "__"
+    return filename
 
 
 # ____________________________________________________________________________ #
@@ -168,7 +209,7 @@ class Selectbox(Gtk.ComboBox, UI):
             iter = self.__model.iter_next(iter)
         raise ValueError("Cannot set active row for value '%s'" % value)
 
-    def set_sensitive(self, value, sensitive):
+    def set_sensitive(self, value, sensitive=None):
         if type(value) == bool:
             super().set_sensitive(value)
             return
@@ -486,10 +527,32 @@ class ProjectDialog(Dialog):
         self.format_box.pack_start(self.format_label)
         self.format_box.pack_start(self.format_select)
 
+        self.page_box = Box(orientation=Gtk.Orientation.VERTICAL)
+        self.page_label = Label(
+            label=_("How many pages does the book have?"),
+            halign=Gtk.Align.START
+        )
+        self.page_adjustment = Gtk.Adjustment(
+            value=1, upper=2, lower=1,
+            step_increment=1, page_increment=10, page_size=0
+        )
+        self.page_adjustment.connect("value-changed", self.increase_page_limit)
+        self.page_number = SpinButton(
+            digits=0,
+            climb_rate=0,
+            adjustment=self.page_adjustment
+        )
+        self.page_box.pack_start(self.page_label)
+        self.page_box.pack_start(self.page_number)
+
         self.form_box.pack_start(self.name_box, False, False, 0)
         self.form_box.pack_start(self.path_box, False, False, 0)
         self.form_box.pack_start(self.format_box, False, False, 0)
+        self.form_box.pack_start(self.page_box, False, False, 0)
         self.form_box.show_all()
+
+    def increase_page_limit(self, *args):
+        self.page_adjustment.set_upper(self.page_adjustment.get_value() + 1)
 
     def update_ui(self, mode):
         _debug_(self, "open. In mode '%s'" % mode)
@@ -499,13 +562,13 @@ class ProjectDialog(Dialog):
             self.chooser = FileChooserDialog(
                 title=_("Select Project Folder"),
                 action=Gtk.FileChooserAction.SELECT_FOLDER,
+                local_only=False,
+                modal=True,
+                create_folders=True
             )
             self.chooser.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
             self.chooser.add_button(_("Choose"), Gtk.ResponseType.OK)
             self.chooser.props.icon_name = "folder"
-            self.chooser.set_local_only(False)
-            self.chooser.set_modal(True)
-            self.chooser.set_create_folders(True)
 
             self.name_input.set_text("")
             self.format_select.set_active(0)
@@ -516,6 +579,8 @@ class ProjectDialog(Dialog):
             self.title = _("Edit Project")
             self.name_input.set_text(Project.name)
             self.format_select.set_value(Project.format)
+            self.page_adjustment.set_upper(Project.pages + 1)
+            self.page_adjustment.set_value(Project.pages)
             self.path_box.hide()
             self.ok_btn.set_sensitive(True)
             self.ok_btn.set_label(_("Save"))
@@ -527,6 +592,7 @@ class ProjectDialog(Dialog):
         data = {
             "name": self.name_input.get_text(),
             "format": self.format_select.get_value(),
+            "pages": int(self.page_adjustment.get_value())
         }
         if self.__mode == "new":
             data["path"] = Project.make_path(self.chooser.get_path())
@@ -650,7 +716,8 @@ class SetupDialog(Dialog):
         self.device_select.clear()
         self.device_select.append(_("Keine Kamera"), "")
         for device in DeviceManager.get():
-            iter = self.device_select.append(device.name, device.path)
+            name = "%s (%s)" % (device.name, device.path)
+            iter = self.device_select.append(name, device.path)
             is_current = device.path == camera.path
             if device.in_use and not is_current:
                 self.device_select.set_sensitive(iter, False)
@@ -687,7 +754,7 @@ class SetupDialog(Dialog):
         if self.__camera.is_ready:
             for control in self.__camera.controls.values():
                 box = control.create_ui()
-                self.controls.pack_start(box, fill=False)
+                self.controls.pack_start(box, False, False, 0)
                 self.controls.show_all()
             self.__camera._update_sensitivity()
 
@@ -756,12 +823,13 @@ class CaptureWindow(Window):
 
         self.page_number_adjustment = Gtk.Adjustment(
             value=1,
-            upper=10000,
+            upper=1,
             lower=1,
             step_increment=1,
             page_increment=10,
             page_size=0
         )
+        self.page_number_adjustment.connect("value-changed", self.page_number_changed)
         self.page_number_input.set_adjustment(self.page_number_adjustment)
 
         self.dragscroll_1 = ScrolledImage(self.scroll_1, self.output_event_1)
@@ -772,42 +840,93 @@ class CaptureWindow(Window):
         for format in Camera.get_image_formats():
             self.image_format_select.append(**format)
         self.image_format_select.show()
+        self.image_format_select.connect("notify::active", self.image_format_changed)
         self.image_format_box.add(self.image_format_select)
 
     def update_ui(self, *args, **kwargs):
         _debug_(self, 'open')
         self.title = _("VHD Scan - %s") % Project.get_name()
-        self.menu_camera_swap.set_sensitive(Project.camera_1.is_ready or Project.camera_2.is_ready)
-        self.update_camera_buttons()
+        self.menu_camera_swap.set_sensitive(Project.has_a_camera())
         self.image_format_select.set_value(Project.format)
 
-        step_increment = 0
-        if Project.camera_1.is_ready:
-            step_increment += 1
-        if Project.camera_2.is_ready:
-            step_increment += 1
-        self.page_number_adjustment.set_step_increment(step_increment)
-        self.page_number_adjustment.set_value(Project.page)
-        self.page_number_input.set_sensitive(Project.camera_1.is_ready or Project.camera_2.is_ready)
+        self.update_camera_button_ui(
+            name=self.camera_1_name,
+            toolbar=self.camera_1_toolbar,
+            camera=Project.camera_1
+        )
+        self.update_camera_button_ui(
+            name=self.camera_2_name,
+            toolbar=self.camera_2_toolbar,
+            camera=Project.camera_2
+        )
+        self.update_capture_button_ui()
+        self.update_page_number_ui()
+        self.update_filename_ui()
 
         if Config.get("view") == "vertical":
             self.menu_view_vertical.set_active(True)
         elif Config.get("view") == "horizontal":
             self.menu_view_horizontal.set_active(True)
 
-    def update_camera_buttons(self):
+    def update_camera_button_ui(self, name, toolbar, camera):
         # TODO: show warning if camera assignment failed
-        has_camera_1 = Project.camera_1.is_ready
-        self.camera_1_name.set_label(Project.camera_1.name)
-        self.camera_1_toolbar.set_sensitive(has_camera_1)
+        label = [camera.name]
+        if camera.is_ready:
+            label.append(camera.path)
+            resolution = camera.get_resolution()
+            if resolution:
+                label.append("%dx%d %s" % (
+                    resolution.width,
+                    resolution.height,
+                    resolution.pixelformat
+                ))
+        name.set_label(", ".join(label))
+        toolbar.set_sensitive(camera.is_ready)
 
-        has_camera_2 = Project.camera_2.is_ready
-        self.camera_2_name.set_label(Project.camera_2.name)
-        self.camera_2_toolbar.set_sensitive(has_camera_2)
-
-        has_a_camera = has_camera_1 or has_camera_2
+    def update_capture_button_ui(self):
+        has_a_camera = Project.has_a_camera()
         self.menu_capture.set_sensitive(has_a_camera)
         self.capture_toolbar.set_sensitive(has_a_camera)
+
+    def update_page_number_ui(self):
+        inc = self.get_page_number_increment()
+        self.page_number_adjustment.set_step_increment(inc)
+        self.page_number_adjustment.set_upper(Project.pages)
+        self.page_number_adjustment.set_value(Project.page)
+        self.page_number_input.set_sensitive(Project.has_a_camera())
+
+    def update_filename_ui(self):
+        self._update_filename_ui(self.filename_1_input, "left")
+        self._update_filename_ui(self.filename_2_input, "right")
+
+    def _update_filename_ui(self, input, slot):
+        icon = "image-x-generic"
+        name = Project.get_filename(slot)
+        if name is None:
+            icon = None
+            name = ""
+        elif is_file(name):
+            icon = "dialog-warning"
+        input.set_text(name)
+        input.set_icon_from_icon_name(Gtk.EntryIconPosition.PRIMARY, icon)
+
+    def get_page_number_increment(self):
+        inc = 0
+        if Project.camera_1.is_ready:
+            inc += 1
+        if Project.camera_2.is_ready:
+            inc += 1
+        return inc
+
+    # hander
+    def page_number_changed(self, *args):
+        Project.set_page(self.page_number_input.get_value())
+        self.update_filename_ui()
+
+    # hander
+    def image_format_changed(self, *args):
+        Project.set_format(self.image_format_select.get_value())
+        self.update_filename_ui()
 
     # hander
     def new_project(self, *args):
@@ -847,7 +966,7 @@ class CaptureWindow(Window):
     def swap_cameras(self, *args):
         Project.camera_1, Project.camera_2 = Project.camera_2, Project.camera_1
         Project.save()
-        self.update_camera_buttons()
+        self.update_camera_button_ui()
 
     # handler
     def setup_camera_1(self, *args):
@@ -893,7 +1012,6 @@ class OptionsDialog(Dialog):
         self.title = _("Options")
         self.cancel_btn.set_label(_("Cancel"))
         self.save_btn.set_label(_("Save"))
-        self.name_pattern_label.set_label(_("File Name Pattern"))
         self.duplicate_handle_label.set_label(_("How to handle existing photos"))
         self.duplicate_handle_select = Selectbox()
         self.duplicate_handle_select.append(_("Replace"), "replace")
@@ -913,6 +1031,7 @@ class Project:
     path = None
     name = ""
     page = None
+    pages = None
     format = None
     camera_1 = None
     camera_2 = None
@@ -923,6 +1042,7 @@ class Project:
             "name": "",
             "format": None,
             "page": 1,
+            "pages": 1,
             "camera_1": None,
             "camera_2": None,
         }
@@ -935,6 +1055,7 @@ class Project:
                 "name": self.name,
                 "format": self.format,
                 "page": self.page,
+                "pages": self.pages,
                 "camera_1": self.camera_1.get_config(),
                 "camera_2": self.camera_2.get_config(),
             })
@@ -946,6 +1067,7 @@ class Project:
         self.name = data["name"]
         self.path = data["path"]
         self.page = 1
+        self.pages = data["pages"]
         self.format = data["format"]
         self.camera_1 = Camera()
         self.camera_2 = Camera()
@@ -971,6 +1093,7 @@ class Project:
         self.update(data)
         self.name = data["name"]
         self.page = data["page"]
+        self.pages = data["pages"]
         self.format = data["format"]
         self.camera_1 = Camera(**data["camera_1"])
         self.camera_2 = Camera(**data["camera_2"])
@@ -1001,6 +1124,7 @@ class Project:
         self.path = None
         self.name = ""
         self.page = None
+        self.pages = None
         self.format = None
         self.camera_1 = None
         self.camera_2 = None
@@ -1011,6 +1135,48 @@ class Project:
         if not self.path or not self.name:
             return _("Unnamed Project")
         return self.name
+
+    @classmethod
+    def set_page(self, value):
+        n = int(value)
+        if n < 1:
+            raise ValueError()
+        if n > self.pages:
+            raise ValueError()
+        self.page = n
+        self.save()
+
+    @classmethod
+    def set_format(self, value):
+        self.format = value
+        self.save()
+
+    @classmethod
+    def get_filename(self, slot):
+        if slot == "left" and self.camera_1.is_ready:
+            return self.make_filename(offset=0)
+        elif slot == "right" and self.camera_2.is_ready:
+            return self.make_filename(offset=1)
+        return None
+
+    @classmethod
+    def make_filename(self, offset=0):
+        # TODO: custom patterns
+
+        n = len(str(self.pages))
+        page = str(self.page + offset).zfill(n)
+
+        # 0 ext | 1 name | 2 page
+        pattern = '{2}_{1}.{0}'
+        return pattern.format(
+            self.format,
+            sanitize_filename(self.name),
+            page
+        )
+
+    @classmethod
+    def has_a_camera(self):
+        return self.camera_1.is_ready or self.camera_2.is_ready
 
     @staticmethod
     def make_path(path):
@@ -1030,18 +1196,6 @@ class Project:
     @staticmethod
     def is_empty(path):
         return is_dir(path) and not os.listdir(path)
-
-    @classmethod
-    def next_page(self):
-        inc = 0
-        if self.camera_1.is_ready:
-            inc += 1
-        if self.camera_2.is_ready:
-            inc += 1
-        if inc == 0:
-            return False
-        self.page += inc
-        return True
 
 
 # ____________________________________________________________________________ #
@@ -1644,7 +1798,7 @@ class Device:
 
         # we build an id to identify a device later on
         self.id = "{0}:{1}:{2}".format(self.vendor_id, self.model_id, self.revision)
-        self.name = "{0} [{1}]".format(self.model, path)
+        self.name = self.model
         self.path = path
         self.valid = True
 

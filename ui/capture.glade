@@ -32,6 +32,7 @@
                       <object class="GtkMenuItem" id="menu_new">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;new&gt;</property>
                         <signal name="activate" handler="new_project" swapped="no"/>
                       </object>
                     </child>
@@ -39,6 +40,7 @@
                       <object class="GtkMenuItem" id="menu_open">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;open&gt;</property>
                         <signal name="activate" handler="open_project" swapped="no"/>
                       </object>
                     </child>
@@ -46,6 +48,7 @@
                       <object class="GtkMenuItem" id="menu_edit">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;edit&gt;</property>
                         <signal name="activate" handler="edit_project" swapped="no"/>
                       </object>
                     </child>
@@ -53,6 +56,7 @@
                       <object class="GtkMenuItem" id="menu_close">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;close&gt;</property>
                         <signal name="activate" handler="close_project" swapped="no"/>
                       </object>
                     </child>
@@ -66,6 +70,7 @@
                       <object class="GtkMenuItem" id="menu_options">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;options&gt;</property>
                         <signal name="activate" handler="show_options" swapped="no"/>
                       </object>
                     </child>
@@ -79,6 +84,7 @@
                       <object class="GtkMenuItem" id="menu_quit">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;quit&gt;</property>
                         <signal name="activate" handler="quit" swapped="no"/>
                       </object>
                     </child>
@@ -99,6 +105,7 @@
                       <object class="GtkMenuItem" id="menu_capture">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;capture&gt;</property>
                         <signal name="activate" handler="capture" swapped="no"/>
                       </object>
                     </child>
@@ -112,6 +119,7 @@
                       <object class="GtkMenuItem" id="menu_camera_1">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;camera-1&gt;</property>
                         <signal name="activate" handler="setup_camera_1" swapped="no"/>
                       </object>
                     </child>
@@ -119,6 +127,7 @@
                       <object class="GtkMenuItem" id="menu_camera_2">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;camera-2&gt;</property>
                         <signal name="activate" handler="setup_camera_2" swapped="no"/>
                       </object>
                     </child>
@@ -126,6 +135,7 @@
                       <object class="GtkMenuItem" id="menu_camera_swap">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;swap&gt;</property>
                         <signal name="activate" handler="swap_cameras" swapped="no"/>
                       </object>
                     </child>
@@ -146,6 +156,7 @@
                       <object class="GtkRadioMenuItem" id="menu_view_vertical">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;vertical&gt;</property>
                         <property name="active">True</property>
                         <property name="draw-as-radio">True</property>
                       </object>
@@ -154,6 +165,7 @@
                       <object class="GtkRadioMenuItem" id="menu_view_horizontal">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">&lt;horizontal&gt;</property>
                         <property name="draw-as-radio">True</property>
                         <property name="group">menu_view_vertical</property>
                       </object>
@@ -234,6 +246,8 @@
                   <object class="GtkBox" id="camera_1_toolbar">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <property name="margin-start">8</property>
+                    <property name="margin-end">8</property>
                     <property name="spacing">8</property>
                     <child>
                       <object class="GtkLabel" id="filename_1_label">
@@ -252,6 +266,7 @@
                       <object class="GtkEntry" id="filename_1_input">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="primary-icon-name">image-x-generic</property>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -454,6 +469,8 @@
                   <object class="GtkBox" id="camera_2_toolbar">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <property name="margin-start">8</property>
+                    <property name="margin-end">8</property>
                     <property name="spacing">8</property>
                     <child>
                       <object class="GtkLabel" id="filename_2_label">
@@ -472,6 +489,7 @@
                       <object class="GtkEntry" id="filename_2_input">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="primary-icon-name">image-x-generic</property>
                       </object>
                       <packing>
                         <property name="expand">True</property>
