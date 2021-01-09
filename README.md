@@ -1,3 +1,3 @@
 # VHD Scanner
 
-[diagram](diagram.jpg)
+![diagram](diagram.jpg)
