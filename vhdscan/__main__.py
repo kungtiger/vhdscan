@@ -4,7 +4,6 @@ from lib import application
 if __name__ == "__main__":
     def run():
         parser = argparse.ArgumentParser()
-        verbosity_group = parser.add_mutually_exclusive_group()
         parser.add_argument(
             "--version",
             help="prints version",
