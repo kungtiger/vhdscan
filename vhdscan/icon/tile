@@ -1,0 +1,3 @@
+#!/bin/sh
+montage *.png -mode Concatenate -tile 6x5 out.jpg
+

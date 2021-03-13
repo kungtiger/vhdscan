@@ -1,0 +1,9 @@
+#! /bin/sh
+echo "Generating graph"
+pydeps vhdscan/lib --max-bacon 1 --pylib-all --noshow --cluster --rmprefix lib. -T png -o graph-internal.png
+
+echo "Generating graph with external modules"
+pydeps vhdscan/lib --max-bacon 2 --pylib-all --noshow --cluster --rmprefix lib. -T png -o graph-external.png
+
+echo "Generating requirements"
+pydeps vhdscan/lib --max-bacon 2 --pylib-all --externals > requirements.txt

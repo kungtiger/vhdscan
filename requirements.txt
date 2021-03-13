@@ -1,0 +1,6 @@
+[
+    "appdirs",
+    "cv2",
+    "gi",
+    "pyudev"
+]

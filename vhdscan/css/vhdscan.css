@@ -1,0 +1,12 @@
+@keyframes spinner { 0% { -gtk-icon-transform: rotate(0deg); }
+  100% { -gtk-icon-transform: rotate(360deg); } }
+
+#project .vhd-status { margin-left: 3px; }
+
+#project .vhd-invalid .label { font-style: italic; }
+
+#project .vhd-invalid .vhd-status { padding: 2px 8px; border-left: 1px solid red; }
+
+#camera { -GtkDialog-content-area-border: 0; }
+
+#camera .vhd-control { padding: .7em .5em; border: none; border-bottom: 1px solid rgba(255, 255, 255, 0.2); border-top: 1px solid rgba(0, 0, 0, 0.2); }

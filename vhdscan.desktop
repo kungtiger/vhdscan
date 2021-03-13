@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=VHD Scan
+Name[de]=VHD Scanner
+Exec=python -m /opt/vhdscan
+Icon=camera-photo
+Terminal=false
+Categories=Graphics;AudioVideo;
