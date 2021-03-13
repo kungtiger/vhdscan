@@ -18,7 +18,6 @@ class Device:
         self.revision = p.get("ID_REVISION", "0000").upper()
         self.name = p.get("DEVNAME")
         self.id = "{0}:{1}:{2}".format(self.vendor_id, self.model_id, self.revision)
-        self.display_name = "{0} ({1})".format(self.model, self.name)
 
     def equals(self, udev_device):
         return self._udev_device == udev_device
