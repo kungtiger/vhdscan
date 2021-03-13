@@ -33,7 +33,7 @@ def run(path):
     ui.add_stylesheet("css/vhdscan.css")
 
     global application_ui, project_ui, open_dialog, camera_ui, settings_ui
-    application_ui = Application_UI("main")
+    application_ui = Application_UI("application")
     project_ui = Project_UI("project")
     open_dialog = Open_Dialog()
     camera_ui = Camera_UI("camera")
