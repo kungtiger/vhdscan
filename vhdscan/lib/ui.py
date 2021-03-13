@@ -1,5 +1,5 @@
 from gi.repository import Gtk, Gdk, GObject, Pango
-from . import application, locale
+from . import locale
 from os.path import realpath
 from .locale import _
 
@@ -86,7 +86,6 @@ def warn(text, title):
 
 
 class UI:
-    stylesheets = {}
 
     def add_class(self, *args):
         add_class(self, *args)
@@ -96,9 +95,6 @@ class UI:
 
     def remove_class(self, *args):
         remove_class(self, *args)
-
-    def focus_widget(self, widget, event, target):
-        target.grab_focus()
 
 
 def pack_start(parent, children, expand=False, fill=True, padding=0):
@@ -304,13 +300,15 @@ class Radiogroup(GObject.Object):
 
 class Window(UI):
 
-    def __init__(self, name):
+    def __init__(self, name, quit=None):
         self._name = name
         self._builder = Gtk.Builder()
         self._builder.add_from_file("glade/" + name + ".glade")
         self._builder.connect_signals(self)
 
         locale.connect("change", self.update_translation)
+        if quit:
+            self.root.connect("destroy", quit)
 
         self.init()
 
@@ -351,10 +349,6 @@ class Window(UI):
     def result(self):
         return None
 
-    # handler
-    def quit(self, *args):
-        application.quit()
-
 
 class Dialog(Window):
 
@@ -377,25 +371,3 @@ class Dialog(Window):
 
     def respond_cancel(self, *args):
         self.root.response(Gtk.ResponseType.CANCEL)
-
-
-def add_stylesheet(path):
-    abspath = realpath(path)
-    css_provider = Gtk.CssProvider()
-    css_provider.load_from_path(abspath)
-    Gtk.StyleContext.add_provider_for_screen(
-        screen=Gdk.Screen.get_default(),
-        provider=css_provider,
-        priority=Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-    )
-    UI.stylesheets[abspath] = css_provider
-
-
-def remove_stylesheet(path):
-    abspath = realpath(path)
-    if abspath in UI.stylesheets:
-        css_provider = UI.stylesheets.pop(abspath)
-        Gtk.StyleContext.remove_provider_for_screen(
-            screen=Gdk.Screen.get_default(),
-            provider=css_provider,
-        )

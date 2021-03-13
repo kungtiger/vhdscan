@@ -24,10 +24,10 @@ _signal = _Signal()
 
 def get_all():
     locales = [["en", "English (en)"]]
-    for json in glob("locale/*.json"):
-        data = json.read(json)
+    for path in glob("locale/*.json"):
+        data = json.read(path)
         if data:
-            iso_key = basename(json).rsplit('.', 1)[0]
+            iso_key = basename(path).rsplit('.', 1)[0]
             name = "{0} ({1})".format(data["name"], iso_key)
             locales.append([iso_key, name])
     locales.sort(key=lambda locale: locale[1])

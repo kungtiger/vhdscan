@@ -9,7 +9,6 @@
     <property name="default-width">800</property>
     <property name="default-height">600</property>
     <property name="gravity">static</property>
-    <signal name="destroy" handler="quit" swapped="no"/>
     <child>
       <object class="GtkBox" id="root_box">
         <property name="visible">True</property>
